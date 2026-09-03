@@ -120,6 +120,16 @@ const assistantEmoji = computed(() => '✦')
 const agentColor = computed(() => colorOf(chat.agent?.agentCode || chat.agent?.name || ''))
 const currentAgent = computed(() => chat.agent)
 
+// 浏览器助手只给扩展端使用：它承载的是不可信网页内容，不应成为桌面端的默认选择。
+// 管理员可继续在桌面端手动选择它，但新会话优先从其他可用智能体中挑选。
+const BROWSER_AGENT_CODE = 'browser'
+
+function defaultDesktopAgentId() {
+  if (!chat.agents.length) return null
+  const preferred = chat.agents.find(agent => agent.agentCode !== BROWSER_AGENT_CODE)
+  return (preferred || chat.agents[0]).agentId
+}
+
 const connectionLabel = computed(() => {
   const s = run.connectionState.value
   if (s === 'connected' || s === 'online') return '在线'
@@ -153,7 +163,10 @@ async function loadAgents() {
   try {
     const res = await listAllAgent()
     chat.agents = (res.data || []).map(a => ({ ...a, name: a.agentName || a.name }))
-    if (!chat.agentId && chat.agents.length) chat.agentId = chat.agents[0].agentId
+    if (!chat.agentId) {
+      const id = defaultDesktopAgentId()
+      if (id != null) chat.setAgent(id)
+    }
   } catch (_) {
     chat.agents = []
   }
@@ -336,6 +349,8 @@ function newConversation(projectId = null) {
   conversationId.value = genId()
   sessionPersisted.value = false
   pendingProjectId.value = projectId == null ? null : Number(projectId)
+  const defaultAgentId = defaultDesktopAgentId()
+  if (defaultAgentId != null) chat.setAgent(defaultAgentId)
   chat.setKbIds([])
   chat.setSkillIds([])
   run.setTurns([])
