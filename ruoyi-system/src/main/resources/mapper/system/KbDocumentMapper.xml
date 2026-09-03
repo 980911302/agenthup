@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.KbDocumentMapper">
+
+    <resultMap type="KbDocument" id="KbDocumentResult">
+        <result property="docId"          column="doc_id"          />
+        <result property="kbId"           column="kb_id"           />
+        <result property="docName"        column="doc_name"        />
+        <result property="filePath"       column="file_path"       />
+        <result property="fileSize"       column="file_size"       />
+        <result property="fileType"       column="file_type"       />
+        <result property="contentHash"    column="content_hash"    />
+        <result property="irPath"         column="ir_path"         />
+        <result property="parseStatus"    column="parse_status"    />
+        <result property="parseStep"      column="parse_step"      />
+        <result property="progress"       column="progress"        />
+        <result property="chunkCount"     column="chunk_count"     />
+        <result property="errorType"      column="error_type"      />
+        <result property="errorStage"     column="error_stage"     />
+        <result property="errorMsg"       column="error_msg"       />
+        <result property="parserVersion"  column="parser_version"  />
+        <result property="status"         column="status"          />
+        <result property="delFlag"        column="del_flag"        />
+        <result property="createBy"       column="create_by"       />
+        <result property="createTime"     column="create_time"     />
+        <result property="updateBy"       column="update_by"       />
+        <result property="updateTime"     column="update_time"     />
+        <result property="remark"         column="remark"          />
+    </resultMap>
+
+    <sql id="selectKbDocumentVo">
+        select doc_id, kb_id, doc_name, file_path, file_size, file_type, content_hash,
+               ir_path, parse_status, parse_step, progress, chunk_count,
+               error_type, error_stage, error_msg, parser_version,
+               status, del_flag, create_by, create_time, update_by, update_time, remark
+        from kb_document
+    </sql>
+
+    <select id="selectKbDocumentById" parameterType="Long" resultMap="KbDocumentResult">
+        <include refid="selectKbDocumentVo"/>
+        where del_flag = '0' and doc_id = #{docId}
+    </select>
+
+    <select id="selectKbDocumentByIds" parameterType="Long" resultMap="KbDocumentResult">
+        <include refid="selectKbDocumentVo"/>
+        where del_flag = '0' and doc_id in
+        <foreach item="docId" collection="array" open="(" separator="," close=")">
+            #{docId}
+        </foreach>
+    </select>
+
+    <select id="selectByKbIdAndContentHash" resultMap="KbDocumentResult">
+        <include refid="selectKbDocumentVo"/>
+        where del_flag = '0' and kb_id = #{kbId} and content_hash = #{contentHash}
+        limit 1
+    </select>
+
+    <select id="selectKbDocumentList" parameterType="KbDocument" resultMap="KbDocumentResult">
+        <include refid="selectKbDocumentVo"/>
+        <where>
+            del_flag = '0'
+            <if test="kbId != null">
+                AND kb_id = #{kbId}
+            </if>
+            <if test="docName != null and docName != ''">
+                AND doc_name like concat('%', #{docName}, '%')
+            </if>
+            <if test="fileType != null and fileType != ''">
+                AND file_type = #{fileType}
+            </if>
+            <if test="parseStatus != null and parseStatus != ''">
+                AND parse_status = #{parseStatus}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        order by doc_id desc
+    </select>
+
+    <insert id="insertKbDocument" parameterType="KbDocument" useGeneratedKeys="true" keyProperty="docId">
+        insert into kb_document
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="kbId != null">kb_id,</if>
+            <if test="docName != null and docName != ''">doc_name,</if>
+            <if test="filePath != null and filePath != ''">file_path,</if>
+            <if test="fileSize != null">file_size,</if>
+            <if test="fileType != null and fileType != ''">file_type,</if>
+            <if test="contentHash != null and contentHash != ''">content_hash,</if>
+            <if test="irPath != null">ir_path,</if>
+            <if test="parseStatus != null and parseStatus != ''">parse_status,</if>
+            <if test="parseStep != null">parse_step,</if>
+            <if test="progress != null">progress,</if>
+            <if test="chunkCount != null">chunk_count,</if>
+            <if test="errorType != null">error_type,</if>
+            <if test="errorStage != null">error_stage,</if>
+            <if test="errorMsg != null">error_msg,</if>
+            <if test="parserVersion != null">parser_version,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="kbId != null">#{kbId},</if>
+            <if test="docName != null and docName != ''">#{docName},</if>
+            <if test="filePath != null and filePath != ''">#{filePath},</if>
+            <if test="fileSize != null">#{fileSize},</if>
+            <if test="fileType != null and fileType != ''">#{fileType},</if>
+            <if test="contentHash != null and contentHash != ''">#{contentHash},</if>
+            <if test="irPath != null">#{irPath},</if>
+            <if test="parseStatus != null and parseStatus != ''">#{parseStatus},</if>
+            <if test="parseStep != null">#{parseStep},</if>
+            <if test="progress != null">#{progress},</if>
+            <if test="chunkCount != null">#{chunkCount},</if>
+            <if test="errorType != null">#{errorType},</if>
+            <if test="errorStage != null">#{errorStage},</if>
+            <if test="errorMsg != null">#{errorMsg},</if>
+            <if test="parserVersion != null">#{parserVersion},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            now()
+        </trim>
+    </insert>
+
+    <update id="updateKbDocument" parameterType="KbDocument">
+        update kb_document
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="docName != null and docName != ''">doc_name = #{docName},</if>
+            <if test="filePath != null and filePath != ''">file_path = #{filePath},</if>
+            <if test="fileSize != null">file_size = #{fileSize},</if>
+            <if test="fileType != null and fileType != ''">file_type = #{fileType},</if>
+            <if test="contentHash != null">content_hash = #{contentHash},</if>
+            <if test="irPath != null">ir_path = #{irPath},</if>
+            <if test="parseStatus != null">parse_status = #{parseStatus},</if>
+            <if test="parseStep != null">parse_step = #{parseStep},</if>
+            <if test="progress != null">progress = #{progress},</if>
+            <if test="chunkCount != null">chunk_count = #{chunkCount},</if>
+            <if test="errorType != null">error_type = #{errorType},</if>
+            <if test="errorStage != null">error_stage = #{errorStage},</if>
+            <if test="errorMsg != null">error_msg = #{errorMsg},</if>
+            <if test="parserVersion != null">parser_version = #{parserVersion},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = now()
+        </trim>
+        where doc_id = #{docId}
+    </update>
+
+    <!-- 进度更新专用:允许把错误字段清空(重试场景) -->
+    <update id="updateParseProgress" parameterType="KbDocument">
+        update kb_document
+        set parse_status = #{parseStatus},
+            parse_step   = #{parseStep},
+            progress     = #{progress},
+            chunk_count  = #{chunkCount},
+            error_type   = #{errorType},
+            error_stage  = #{errorStage},
+            error_msg    = #{errorMsg},
+            ir_path      = #{irPath},
+            parser_version = #{parserVersion},
+            update_time  = now()
+        where doc_id = #{docId}
+    </update>
+
+    <delete id="deleteKbDocumentById" parameterType="Long">
+        update kb_document set del_flag = '2' where doc_id = #{docId}
+    </delete>
+
+    <delete id="deleteKbDocumentByIds" parameterType="Long">
+        update kb_document set del_flag = '2' where doc_id in
+        <foreach item="docId" collection="array" open="(" separator="," close=")">
+            #{docId}
+        </foreach>
+    </delete>
+
+    <delete id="purgeKbDocumentById" parameterType="Long">
+        delete from kb_document where doc_id = #{docId}
+    </delete>
+
+</mapper>

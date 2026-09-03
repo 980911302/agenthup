@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.MemVectorMapper">
+
+    <!-- dim 来自白名单路由,非用户输入;用 ${dim} 拼表名 -->
+
+    <insert id="upsert">
+        insert into mem_vector_${dim} (memory_id, user_id, agent_id, embedding)
+        values (#{memoryId}, #{userId}, #{agentId}, cast(#{embedding} as vector))
+        on conflict (memory_id) do update
+          set user_id = excluded.user_id,
+              agent_id = excluded.agent_id,
+              embedding = excluded.embedding
+    </insert>
+
+    <!-- 一次 SQL 查两层:用户层 + 该 agent 层;order by 距离才能走 HNSW -->
+    <select id="searchLayered" resultType="map">
+        select v.memory_id as "memoryId",
+               (1 - (v.embedding &lt;=&gt; cast(#{queryVector} as vector))) as score
+          from mem_vector_${dim} v
+         where v.user_id = #{userId}
+           and v.agent_id in (0, #{agentId})
+         order by v.embedding &lt;=&gt; cast(#{queryVector} as vector)
+         limit #{topK}
+    </select>
+
+    <delete id="deleteByMemoryIds">
+        delete from mem_vector_${dim}
+         where user_id = #{userId}
+           and memory_id in
+        <foreach item="id" collection="memoryIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteByUser">
+        delete from mem_vector_${dim} where user_id = #{userId}
+    </delete>
+
+</mapper>

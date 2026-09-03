@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiSkillFileMapper">
+
+    <resultMap type="com.ruoyi.system.domain.AiSkillFile" id="AiSkillFileResult">
+        <id property="fileId" column="file_id"/>
+        <result property="skillId" column="skill_id"/>
+        <result property="relPath" column="rel_path"/>
+        <result property="fileSize" column="file_size"/>
+        <result property="contentType" column="content_type"/>
+        <result property="summary" column="summary"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+
+    <sql id="columns">
+        file_id, skill_id, rel_path, file_size, content_type, summary,
+        create_by, create_time, del_flag
+    </sql>
+
+    <select id="selectBySkillId" parameterType="Long" resultMap="AiSkillFileResult">
+        select <include refid="columns"/> from ai_skill_file
+        where del_flag = '0' and skill_id = #{skillId}
+        order by rel_path asc
+    </select>
+
+    <select id="selectById" parameterType="Long" resultMap="AiSkillFileResult">
+        select <include refid="columns"/> from ai_skill_file
+        where del_flag = '0' and file_id = #{fileId}
+    </select>
+
+    <select id="selectBySkillAndPath" resultMap="AiSkillFileResult">
+        select <include refid="columns"/> from ai_skill_file
+        where del_flag = '0' and skill_id = #{skillId} and rel_path = #{relPath}
+    </select>
+
+    <insert id="insertAiSkillFile" parameterType="com.ruoyi.system.domain.AiSkillFile"
+            useGeneratedKeys="true" keyProperty="fileId">
+        insert into ai_skill_file
+        (skill_id, rel_path, file_size, content_type, summary, create_by, create_time, del_flag)
+        values
+        (#{skillId}, #{relPath}, #{fileSize}, #{contentType}, #{summary}, #{createBy}, #{createTime}, '0')
+    </insert>
+
+    <update id="updateAiSkillFile" parameterType="com.ruoyi.system.domain.AiSkillFile">
+        update ai_skill_file
+        <set>
+            <if test="fileSize != null">file_size = #{fileSize},</if>
+            <if test="contentType != null">content_type = #{contentType},</if>
+            <if test="summary != null">summary = #{summary},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+        </set>
+        where file_id = #{fileId}
+    </update>
+
+    <update id="deleteById" parameterType="Long">
+        update ai_skill_file set del_flag = '2' where file_id = #{fileId}
+    </update>
+
+    <update id="deleteBySkillId" parameterType="Long">
+        update ai_skill_file set del_flag = '2' where skill_id = #{skillId}
+    </update>
+
+</mapper>

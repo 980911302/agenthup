@@ -1,0 +1,83 @@
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.ext-chat {
+  min-width: 0;
+  position: relative;
+}
+
+.ext-chat .sess-drawer {
+  width: 100%;
+}
+
+.ext-chat .sidebar__kbd-group {
+  display: none;
+}
+
+.ext-chat .chat__main {
+  width: 100%;
+}
+
+.ext-chat .chat__conversation-header {
+  height: 46px;
+  flex-basis: 46px;
+  padding: 0 10px;
+  gap: 8px;
+}
+
+.ext-chat .chat__session-title {
+  max-width: none;
+  font-size: 14px;
+}
+
+.ext-chat .chat__workspace-fab {
+  display: none;
+}
+
+.ext-chat .chat-body {
+  padding: 8px 10px 16px;
+}
+
+/* 欢迎页样式已内聚到 ChatWelcome.vue,这里只保留面板特有约束 */
+.ext-chat .chat-welcome {
+  max-width: 100%;
+}
+
+.ext-chat .msg__user,
+.ext-chat .msg__bubble {
+  max-width: 100%;
+}
+
+.ext-chat .chat-welcome__input-slot .chat-input-wrapper--compact {
+  padding: 0;
+}
+
+.ext-chat .ws-drawer,
+.ext-chat .set-drawer,
+.ext-chat .sess-drawer {
+  width: 100%;
+}
+
+.project-dialog-mask {
+  padding: 12px !important;
+}
+
+.project-dialog {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.ext-chat pre,
+.ext-chat code {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.auth-panel__main {
+  padding-left: 14px;
+  padding-right: 14px;
+}

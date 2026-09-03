@@ -1,0 +1,410 @@
+:root {
+  --ink: #05070a;
+  --ink-2: #0a0e12;
+  --ink-3: #10151a;
+  --bone: #dfe7e0;
+  --bone-dim: #aab4ad;
+  --muted: #78837c;
+  --line: rgba(223, 231, 224, 0.13);
+  --line-soft: rgba(223, 231, 224, 0.07);
+  --vermilion: #e0231c;
+  --ember: #ff5a3c;
+  --gold: #c9a24a;
+  --pad: clamp(20px, 3.4vw, 56px);
+  --content-max: 1180px;
+  --nav-h: 80px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --font: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    system-ui, sans-serif;
+  --serif: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--bone);
+  font-family: var(--font);
+  font-weight: 300;
+  font-size: 16px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  letter-spacing: 0.02em;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: var(--vermilion);
+  color: #fff;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* —— WebGL 画布（固定全屏底层） —— */
+.gl-host {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: #05070a;
+}
+
+.gl-host canvas,
+#gl {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* —— 氛围层 —— */
+#grain {
+  position: fixed;
+  inset: -1px;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px;
+}
+
+#vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+  background: radial-gradient(
+    125% 95% at 50% 42%,
+    transparent 35%,
+    rgba(2, 4, 6, 0.5) 100%
+  );
+}
+
+.page {
+  position: relative;
+  z-index: 10;
+}
+
+/* —— 预加载 —— */
+#pre {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #05070a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.8s var(--ease), visibility 0.8s;
+}
+
+#pre.done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pre-in {
+  width: min(420px, 74vw);
+  text-align: center;
+}
+
+.pre-mark {
+  margin: 0 auto 22px;
+  width: 44px;
+  height: 44px;
+}
+
+.pre-mark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.pre-jp {
+  font-size: 12px;
+  letter-spacing: 0.4em;
+  color: var(--bone-dim);
+  margin-bottom: 10px;
+  font-weight: 300;
+}
+
+.pre-title {
+  font-family: var(--serif);
+  font-size: 13px;
+  letter-spacing: 0.28em;
+  color: var(--bone);
+  margin-bottom: 28px;
+  font-weight: 400;
+}
+
+.pre-bar {
+  position: relative;
+  height: 1px;
+  background: rgba(223, 231, 224, 0.14);
+  overflow: hidden;
+}
+
+.pre-bar i {
+  position: absolute;
+  inset: 0 100% 0 0;
+  background: var(--bone);
+  transition: right 0.12s linear;
+}
+
+.pre-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.pre-meta b {
+  font-weight: 500;
+  color: var(--bone-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* —— 排版 —— */
+.eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  color: var(--bone-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eyebrow .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--vermilion);
+  box-shadow: 0 0 10px var(--vermilion);
+  flex-shrink: 0;
+}
+
+.eyebrow .jp {
+  color: var(--muted);
+  letter-spacing: 0.28em;
+  font-size: 10px;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 400;
+  margin: 0;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  word-break: keep-all;
+}
+
+.display {
+  font-family: var(--serif);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 34px rgba(3, 6, 8, 0.72);
+}
+
+.h-hero {
+  font-size: clamp(28px, 4.2vw, 52px);
+}
+
+.h-sec {
+  font-size: clamp(26px, 3.6vw, 48px);
+}
+
+.body-lg {
+  font-size: clamp(14px, 1.05vw, 17px);
+  line-height: 1.85;
+  color: #b4bfb7;
+  font-weight: 300;
+}
+
+.body {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #9aa5a0;
+  font-weight: 300;
+}
+
+.num {
+  font-size: clamp(26px, 2.5vw, 36px);
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--serif);
+}
+
+/* —— 容器 —— */
+/*
+ * 全站内容水平边距统一入口。
+ * 注意：.section 不能用 padding 简写覆盖左右，否则会把 .shell 的水平内边距清零导致错版。
+ */
+.shell {
+  width: 100%;
+  max-width: calc(var(--content-max) + var(--pad) * 2);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--pad);
+  padding-right: var(--pad);
+  box-sizing: border-box;
+}
+
+.section {
+  position: relative;
+  padding-top: clamp(80px, 12vh, 140px);
+  padding-bottom: clamp(80px, 12vh, 140px);
+  box-sizing: border-box;
+}
+
+/* 内容区半透明底板：保证文字叠在 WebGL 上仍可读，又不遮死场景 */
+.section.shell {
+  background: linear-gradient(
+    180deg,
+    rgba(5, 7, 10, 0.55) 0%,
+    rgba(5, 7, 10, 0.72) 40%,
+    rgba(5, 7, 10, 0.78) 100%
+  );
+}
+
+.section-head {
+  max-width: 640px;
+  margin-bottom: clamp(40px, 6vh, 72px);
+}
+
+.section-head .eyebrow {
+  margin-bottom: 18px;
+}
+
+.section-head .h-sec {
+  margin-bottom: 18px;
+}
+
+.section-head .body-lg {
+  max-width: 420px;
+}
+
+/* —— 按钮 —— */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 22px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  transition: background 0.35s var(--ease), color 0.35s var(--ease),
+    border-color 0.35s var(--ease), transform 0.2s;
+  border: 1px solid transparent;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-fill {
+  background: var(--bone);
+  color: var(--ink);
+}
+
+.btn-fill:hover {
+  background: #fff;
+}
+
+.btn-ghost {
+  border-color: var(--line);
+  color: var(--bone-dim);
+  background: transparent;
+}
+
+.btn-ghost:hover {
+  border-color: var(--bone-dim);
+  color: var(--bone);
+}
+
+.btn-line {
+  border-color: var(--vermilion);
+  color: var(--bone);
+  background: transparent;
+}
+
+.btn-line:hover {
+  background: var(--vermilion);
+  color: #fff;
+}
+
+/* —— 滚动显现 —— */
+[data-rv] {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+  transition: opacity 0.9s var(--ease-out), transform 1.05s var(--ease-out);
+}
+
+[data-rv].rv-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* —— 滚动条 —— */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ink);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(223, 231, 224, 0.18);
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 15px;
+  }
+}

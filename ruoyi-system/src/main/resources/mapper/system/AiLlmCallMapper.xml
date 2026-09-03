@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiLlmCallMapper">
+
+    <insert id="insertLlmCall" parameterType="AiLlmCall" useGeneratedKeys="true" keyProperty="callId">
+        insert into ai_llm_call
+        (session_id, agent_id, conversation_id, message_id, model_id, model_name,
+         call_seq, depth, finish_reason, prompt_tokens, completion_tokens, total_tokens,
+         cache_hit_tokens, cache_miss_tokens,
+         usage_source, duration_ms, response_id, create_time)
+        values
+        (#{sessionId}, #{agentId}, #{conversationId}, #{messageId}, #{modelId}, #{modelName},
+         #{callSeq}, #{depth}, #{finishReason}, #{promptTokens}, #{completionTokens}, #{totalTokens},
+         #{cacheHitTokens}, #{cacheMissTokens},
+         #{usageSource}, #{durationMs}, #{responseId}, #{createTime})
+    </insert>
+
+    <update id="bindMessageIdByIds">
+        update ai_llm_call
+           set message_id = #{messageId}
+         where message_id is null
+           and call_id in
+           <foreach item="id" collection="callIds" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <update id="unbindMessageIds">
+        update ai_llm_call set message_id = null
+         where message_id in
+         <foreach item="id" collection="messageIds" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <update id="unbindMessageIdsBySession">
+        update ai_llm_call set message_id = null where session_id = #{sessionId}
+    </update>
+
+    <delete id="deleteBySessionId">
+        delete from ai_llm_call where session_id = #{sessionId}
+    </delete>
+
+    <!-- 物理删除某模型产生的全部调用明细(删除模型时连带清理,避免 by-model 统计残留). -->
+    <delete id="deleteByModelIds">
+        <if test="modelIds != null and modelIds.size() > 0">
+            delete from ai_llm_call where model_id in
+            <foreach item="modelId" collection="modelIds" open="(" separator="," close=")">
+                #{modelId}
+            </foreach>
+        </if>
+    </delete>
+
+    <select id="countEstimatedBySession" resultType="int">
+        select count(1) from ai_llm_call
+         where session_id = #{sessionId} and usage_source = '1'
+    </select>
+
+    <!--
+      最近一次顶层调用的真实 prompt 观测值。
+      差值记账只解开 Spring AI 的累计包装；每行保留该次 HTTP 请求的完整 prompt。
+    -->
+    <select id="selectLatestPromptTokens" resultType="long">
+        select ifnull(prompt_tokens, 0)
+          from ai_llm_call
+         where session_id = #{sessionId}
+           and depth = 0
+           <if test="conversationId != null and conversationId != ''">
+           and conversation_id = #{conversationId}
+           </if>
+         order by call_id desc
+         limit 1
+    </select>
+
+    <!-- 本会话顶层 prompt 峰值:与 latest 分开查询,不要混用(latest=现在,peak=历史最大) -->
+    <select id="selectPeakPromptTokens" resultType="long">
+        select ifnull(max(prompt_tokens), 0)
+          from ai_llm_call
+         where session_id = #{sessionId}
+           and depth = 0
+           <if test="conversationId != null and conversationId != ''">
+           and conversation_id = #{conversationId}
+           </if>
+    </select>
+
+    <!-- 会话级缓存命中聚合;供上下文环图 metrics 使用 -->
+    <select id="sumCacheTokensBySession" resultType="map">
+        select
+            ifnull(sum(least(ifnull(cache_hit_tokens, 0), ifnull(prompt_tokens, 0))), 0) as hit,
+            ifnull(sum(cache_miss_tokens), 0) as miss,
+            count(1)                          as calls,
+            <!-- depth=0 是主智能体,>0 是子智能体(SubAgentToolCallback 按 chain 深度写入)。
+                 老数据 depth 可能为 null,一律按主智能体算 -->
+            ifnull(sum(case when ifnull(depth, 0) = 0
+                       then least(ifnull(cache_hit_tokens, 0), ifnull(prompt_tokens, 0)) else 0 end), 0) as mainHit,
+            ifnull(sum(case when ifnull(depth, 0) = 0 then ifnull(cache_miss_tokens, 0) else 0 end), 0)  as mainMiss,
+            sum(case when ifnull(depth, 0) = 0 then 1 else 0 end) as mainCalls,
+            ifnull(sum(case when ifnull(depth, 0) &gt; 0
+                       then least(ifnull(cache_hit_tokens, 0), ifnull(prompt_tokens, 0)) else 0 end), 0) as subHit,
+            ifnull(sum(case when ifnull(depth, 0) &gt; 0 then ifnull(cache_miss_tokens, 0) else 0 end), 0) as subMiss,
+            sum(case when ifnull(depth, 0) &gt; 0 then 1 else 0 end) as subCalls
+        from ai_llm_call
+         where session_id = #{sessionId}
+    </select>
+
+    <select id="selectOverview" resultType="map">
+        select
+            ifnull(sum(total_tokens), 0)      as totalTokens,
+            ifnull(sum(prompt_tokens), 0)     as promptTokens,
+            ifnull(sum(completion_tokens), 0) as completionTokens,
+            count(1)                          as callCount,
+            count(distinct session_id)        as sessionCount,
+            sum(case when usage_source = '0' then 1 else 0 end) as realCallCount
+        from ai_llm_call
+        where create_time &gt;= #{since}
+    </select>
+
+    <select id="selectByModel" resultType="map">
+        select
+            ifnull(c.model_name, concat('model#', c.model_id)) as modelName,
+            c.model_id as modelId,
+            ifnull(sum(c.total_tokens), 0) as totalTokens,
+            ifnull(sum(c.prompt_tokens), 0) as promptTokens,
+            ifnull(sum(c.completion_tokens), 0) as completionTokens,
+            count(1) as callCount
+        from ai_llm_call c
+        where c.create_time &gt;= #{since}
+        group by c.model_id, c.model_name
+        order by totalTokens desc
+        limit #{limit}
+    </select>
+
+    <select id="selectByAgent" resultType="map">
+        select
+            c.agent_id as agentId,
+            ifnull(a.agent_name, concat('agent#', c.agent_id)) as agentName,
+            ifnull(sum(c.total_tokens), 0) as totalTokens,
+            ifnull(sum(c.prompt_tokens), 0) as promptTokens,
+            ifnull(sum(c.completion_tokens), 0) as completionTokens,
+            count(1) as callCount
+        from ai_llm_call c
+        left join ai_agent a on c.agent_id = a.agent_id and a.del_flag = '0'
+        where c.create_time &gt;= #{since}
+          and c.agent_id is not null
+        group by c.agent_id, a.agent_name
+        order by totalTokens desc
+        limit #{limit}
+    </select>
+
+    <select id="selectTrend" resultType="map">
+        select
+            date_format(create_time, '%Y-%m-%d') as day,
+            ifnull(sum(total_tokens), 0) as totalTokens,
+            count(1) as callCount
+        from ai_llm_call
+        where create_time &gt;= #{since}
+        group by date_format(create_time, '%Y-%m-%d')
+        order by day asc
+    </select>
+
+    <!--
+      缓存命中聚合(首页健康指标)。
+      命中率 = cacheHitTokens / (cacheHitTokens + cacheMissTokens);
+      总 token = prompt + completion,作为分母会让"命中率"看起来虚低,
+      所以分母只用 prompt 输入侧(命中只发生在 prompt 端)。
+    -->
+    <select id="selectCacheStats" resultType="map">
+        select
+            ifnull(sum(least(ifnull(cache_hit_tokens, 0), ifnull(prompt_tokens, 0))), 0) as hitTokens,
+            ifnull(sum(cache_miss_tokens), 0) as missTokens,
+            ifnull(sum(prompt_tokens), 0)     as promptTokens
+        from ai_llm_call
+        where create_time &gt;= #{since}
+          and usage_source = '0'
+    </select>
+
+    <!-- desktop 个人用量页：必须经 session.user_id 过滤，不能复用后台全局统计。
+         会话是逻辑删除；调用明细为已发生的消耗凭证，所以此处刻意不筛 s.del_flag。 -->
+    <select id="selectUserOverview" resultType="map">
+        select
+            ifnull(sum(c.total_tokens), 0)      as totalTokens,
+            ifnull(sum(c.prompt_tokens), 0)     as promptTokens,
+            ifnull(sum(c.completion_tokens), 0) as completionTokens,
+            count(1)                            as callCount,
+            count(distinct c.session_id)        as sessionCount,
+            sum(case when c.usage_source = '0' then 1 else 0 end) as realCallCount
+        from ai_llm_call c
+        inner join ai_chat_session s on s.session_id = c.session_id
+        where c.create_time &gt;= #{since}
+          and s.user_id = #{userId}
+    </select>
+
+    <select id="selectUserTrend" resultType="map">
+        select
+            date_format(c.create_time, '%Y-%m-%d') as day,
+            ifnull(sum(c.total_tokens), 0) as totalTokens,
+            ifnull(sum(c.prompt_tokens), 0) as promptTokens,
+            ifnull(sum(c.completion_tokens), 0) as completionTokens,
+            count(1) as callCount
+        from ai_llm_call c
+        inner join ai_chat_session s on s.session_id = c.session_id
+        where c.create_time &gt;= #{since}
+          and s.user_id = #{userId}
+        group by date_format(c.create_time, '%Y-%m-%d')
+        order by day asc
+    </select>
+
+    <select id="selectUserCacheStats" resultType="map">
+        select
+            ifnull(sum(least(ifnull(c.cache_hit_tokens, 0), ifnull(c.prompt_tokens, 0))), 0) as hitTokens,
+            ifnull(sum(c.cache_miss_tokens), 0) as missTokens,
+            ifnull(sum(c.prompt_tokens), 0)     as promptTokens
+        from ai_llm_call c
+        inner join ai_chat_session s on s.session_id = c.session_id
+        where c.create_time &gt;= #{since}
+          and s.user_id = #{userId}
+          and c.usage_source = '0'
+    </select>
+
+</mapper>

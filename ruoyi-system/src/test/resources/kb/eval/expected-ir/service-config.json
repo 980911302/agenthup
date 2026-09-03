@@ -1,0 +1,12 @@
+{
+  "docId": "service-config",
+  "fileName": "service-config.json",
+  "sourceType": "json",
+  "minBlocks": 3,
+  "requiredHeadings": [],
+  "requiredSubstrings": ["agent-service", "8080", "text-embedding-v3"],
+  "requiredBlockTypes": [],
+  "requiredSourceLabels": ["$.service", "$.kb"],
+  "minPageNumber": null,
+  "maxPageNumber": null
+}

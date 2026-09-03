@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiMemoryMapper">
+
+    <resultMap type="com.ruoyi.system.domain.AiMemory" id="AiMemoryResult">
+        <id     property="memoryId"        column="memory_id"/>
+        <result property="userId"          column="user_id"/>
+        <result property="agentId"         column="agent_id"/>
+        <result property="type"            column="type"/>
+        <result property="content"         column="content"/>
+        <result property="status"          column="status"/>
+        <result property="supersededBy"    column="superseded_by"/>
+        <result property="source"          column="source"/>
+        <result property="sourceSessionId" column="source_session_id"/>
+        <result property="sourceMessageId" column="source_message_id"/>
+        <result property="contentHash"     column="content_hash"/>
+        <result property="embeddingDim"    column="embedding_dim"/>
+        <result property="embeddingModel"  column="embedding_model"/>
+        <result property="hitCount"        column="hit_count"/>
+        <result property="lastHitTime"     column="last_hit_time"/>
+        <result property="createTime"      column="create_time"/>
+        <result property="updateTime"      column="update_time"/>
+        <result property="delFlag"         column="del_flag"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.ruoyi.system.domain.AiMemory" useGeneratedKeys="true" keyProperty="memoryId">
+        insert into ai_memory
+        (user_id, agent_id, type, content, status, superseded_by, source,
+         source_session_id, source_message_id, content_hash, embedding_dim,
+         embedding_model, hit_count, create_time, del_flag)
+        values
+        (#{userId}, #{agentId}, #{type}, #{content}, #{status}, #{supersededBy}, #{source},
+         #{sourceSessionId}, #{sourceMessageId}, #{contentHash}, #{embeddingDim},
+         #{embeddingModel}, 0, now(), '0')
+    </insert>
+
+    <update id="update" parameterType="com.ruoyi.system.domain.AiMemory">
+        update ai_memory
+        <set>
+            <if test="type != null">type = #{type},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="supersededBy != null">superseded_by = #{supersededBy},</if>
+            <if test="contentHash != null">content_hash = #{contentHash},</if>
+            <if test="embeddingDim != null">embedding_dim = #{embeddingDim},</if>
+            <if test="embeddingModel != null">embedding_model = #{embeddingModel},</if>
+            update_time = now()
+        </set>
+        where memory_id = #{memoryId}
+          and user_id = #{userId}
+          and del_flag = '0'
+    </update>
+
+    <select id="selectById" resultMap="AiMemoryResult">
+        select * from ai_memory
+         where memory_id = #{memoryId}
+           and user_id = #{userId}
+           and agent_id = #{agentId}
+           and del_flag = '0'
+    </select>
+
+    <select id="selectByIds" resultMap="AiMemoryResult">
+        select * from ai_memory
+         where user_id = #{userId}
+           and memory_id in
+        <foreach item="id" collection="memoryIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+           and del_flag = '0'
+    </select>
+
+    <select id="selectByUser" resultMap="AiMemoryResult">
+        select * from ai_memory
+         where user_id = #{userId}
+           and del_flag = '0'
+    </select>
+
+    <select id="selectAdminList" parameterType="com.ruoyi.system.domain.AiMemory" resultMap="AiMemoryResult">
+        select * from ai_memory
+        <where>
+            del_flag = '0'
+            <if test="userId != null">and user_id = #{userId}</if>
+            <if test="agentId != null">and agent_id = #{agentId}</if>
+            <if test="type != null and type != ''">and type = #{type}</if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+            <if test="content != null and content != ''">and content like concat('%', #{content}, '%')</if>
+        </where>
+        order by create_time desc, memory_id desc
+    </select>
+
+    <select id="selectAdminByIds" resultMap="AiMemoryResult">
+        select * from ai_memory
+         where del_flag = '0'
+           and memory_id in
+        <foreach item="id" collection="memoryIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <update id="softDeleteByIds">
+        update ai_memory
+           set del_flag = '2',
+               update_time = now()
+         where del_flag = '0'
+           and memory_id in
+        <foreach item="id" collection="memoryIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <update id="deleteByUser">
+        update ai_memory
+           set del_flag = '2',
+               update_time = now()
+         where user_id = #{userId}
+    </update>
+
+    <select id="selectByHash" resultMap="AiMemoryResult">
+        select * from ai_memory
+         where user_id = #{userId}
+           and agent_id = #{agentId}
+           and content_hash = #{contentHash}
+           and status = 'active'
+           and del_flag = '0'
+         limit 1
+    </select>
+
+    <select id="countActive" resultType="long">
+        select count(*) from ai_memory
+         where user_id = #{userId}
+           and agent_id = #{agentId}
+           and status = 'active'
+           and del_flag = '0'
+    </select>
+
+    <update id="markSuperseded">
+        update ai_memory
+           set status = 'superseded',
+               superseded_by = #{supersededBy},
+               update_time = now()
+         where memory_id = #{memoryId}
+           and user_id = #{userId}
+           and agent_id = #{agentId}
+           and status = 'active'
+           and del_flag = '0'
+    </update>
+
+    <update id="bumpHit">
+        update ai_memory
+           set hit_count = hit_count + 1,
+               last_hit_time = now()
+         where memory_id = #{memoryId}
+           and del_flag = '0'
+    </update>
+
+    <!-- 测试专用:H2 建表(H2 mem, MySQL 模式),真库建表见 sql/init/10_ai_memory.sql -->
+    <update id="createTableForTest">
+        create table if not exists ai_memory (
+          memory_id bigint auto_increment,
+          user_id bigint not null,
+          agent_id bigint not null,
+          type varchar(20) not null,
+          content clob not null,
+          status varchar(20) default 'active',
+          superseded_by bigint,
+          source varchar(20) default 'auto',
+          source_session_id varchar(64),
+          source_message_id bigint,
+          content_hash varchar(64),
+          embedding_dim int,
+          embedding_model varchar(100),
+          hit_count int default 0,
+          last_hit_time timestamp,
+          create_time timestamp not null,
+          update_time timestamp,
+          del_flag varchar(1) default '0',
+          primary key (memory_id)
+        )
+    </update>
+
+    <update id="dropTableForTest">
+        drop table if exists ai_memory
+    </update>
+
+</mapper>

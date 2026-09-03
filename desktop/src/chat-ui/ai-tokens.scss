@@ -1,0 +1,61 @@
+// AI 模块设计 token —— 所有 AI 页面共用，勿在页面内重复定义。
+// 颜色走 CSS 变量，根据 [data-theme="dark"] / [data-theme="light"] 自动切换。
+
+$ai-blue:   var(--accent, #38bdf8);
+$ai-green:  var(--ok, #34d399);
+$ai-orange: var(--warn, #fbbf24);
+$ai-red:    var(--danger, #f87171);
+
+// 文本色：绑定 CSS 变量，亮暗主题自适应
+$ai-text:   var(--ai-text, #0f172a);
+$ai-text2:  var(--ai-text2, #475569);
+$ai-gray:   var(--ai-gray, #64748b);
+$ai-gray2:  var(--ai-gray2, #94a3b8);
+$ai-gray3:  var(--ai-gray3, #cbd5e1);
+$ai-gray5:  var(--ai-gray5, #e2e8f0);
+
+$ai-radius-2xl: 24px;
+$ai-radius-xl:  20px;
+$ai-radius:     12px;
+$ai-radius-sm:  8px;
+$ai-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+$ai-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+$ai-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+// ---- 字号阶梯 ----
+$ai-fs-1: 20px;    // 页面主标题 / 欢迎页
+$ai-fs-2: 17px;    // 区块标题
+$ai-fs-3: 15.5px;  // 次级标题
+$ai-fs-4: 14.5px;  // 正文(对话内容、输入框)
+$ai-fs-5: 13px;    // 辅助信息、标签、按钮
+$ai-fs-6: 11.5px;  // 元数据、耗时、计数
+
+// ---- 行高(3 档)----
+$ai-lh-tight: 1.35;  // 标题
+$ai-lh-base:  1.72;  // 正文
+$ai-lh-meta:  1.5;   // 元数据、单行标签
+
+// ---- 阅读宽度 ----
+$ai-content-max: 860px;  // 消息列表与输入框统一居中宽度
+$ai-measure-user: 34em;  // 用户气泡独立最大宽度
+
+// ---- 辅助与思考链文本色 ----
+$ai-text3: var(--ai-text3, #94a3b8);
+$ai-text-think: var(--ai-text-think, #334155);
+
+// 快捷别名
+$blue:   $ai-blue;
+$green:  $ai-green;
+$orange: $ai-orange;
+$red:    $ai-red;
+$text:   $ai-text;
+$text2:  $ai-text2;
+$gray:   $ai-gray;
+$gray2:  $ai-gray2;
+$gray3:  $ai-gray3;
+$gray5:  $ai-gray5;
+$radius:    $ai-radius;
+$radius-sm: $ai-radius-sm;
+$font: $ai-font;
+$mono: $ai-mono;
+$ease: $ai-ease;

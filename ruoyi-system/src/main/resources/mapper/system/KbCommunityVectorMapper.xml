@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.KbCommunityVectorMapper">
+
+    <insert id="upsert">
+        insert into kb_community_vector_${dim} (report_id, kb_id, embedding)
+        values (#{row.reportId}, #{row.kbId}, cast(#{row.embedding} as vector))
+        on conflict (report_id) do update
+          set kb_id = excluded.kb_id,
+              embedding = excluded.embedding
+    </insert>
+
+    <delete id="deleteByKbId">
+        delete from kb_community_vector_${dim} where kb_id = #{kbId}
+    </delete>
+
+    <select id="search" resultType="map">
+        select v.report_id as "reportId",
+               (1 - (v.embedding &lt;=&gt; cast(#{queryVector} as vector))) as score
+          from kb_community_vector_${dim} v
+         where v.kb_id = #{kbId}
+         order by v.embedding &lt;=&gt; cast(#{queryVector} as vector)
+         limit #{topK}
+    </select>
+</mapper>

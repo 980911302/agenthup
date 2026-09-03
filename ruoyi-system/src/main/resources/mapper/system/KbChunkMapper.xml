@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.KbChunkMapper">
+
+    <resultMap type="KbChunk" id="KbChunkResult">
+        <result property="chunkId"          column="chunk_id"          />
+        <result property="kbId"             column="kb_id"             />
+        <result property="docId"            column="doc_id"            />
+        <result property="chunkIndex"       column="chunk_index"       />
+        <result property="content"          column="content"           />
+        <result property="headingPath"      column="heading_path"      />
+        <result property="blockType"        column="block_type"        />
+        <result property="tokenCount"       column="token_count"       />
+        <result property="embeddingDim"     column="embedding_dim"     />
+        <result property="chunkerStrategy"  column="chunker_strategy"  />
+        <result property="chunkParamsHash"  column="chunk_params_hash" />
+        <result property="embeddingModel"   column="embedding_model"   />
+        <result property="sourcePageFrom"   column="source_page_from"  />
+        <result property="sourcePageTo"     column="source_page_to"    />
+        <result property="sourceLabel"      column="source_label"      />
+        <result property="chunkLevel"       column="chunk_level"       />
+        <result property="parentChunkId"    column="parent_chunk_id"   />
+        <result property="createTime"       column="create_time"       />
+        <result property="docName"          column="doc_name"          />
+    </resultMap>
+
+    <!-- 向量已迁到 kb_vector_{dim},此处不再查 embedding -->
+    <sql id="selectKbChunkVo">
+        select chunk_id, kb_id, doc_id, chunk_index, content, heading_path, block_type,
+               token_count, embedding_dim, chunker_strategy, chunk_params_hash,
+               embedding_model, source_page_from, source_page_to, source_label,
+               chunk_level, parent_chunk_id, create_time
+        from kb_chunk
+    </sql>
+
+    <select id="selectLineageByKbId" parameterType="Long" resultMap="KbChunkResult">
+        select c.chunk_id, c.kb_id, c.doc_id, c.chunk_index,
+               c.chunker_strategy, c.chunk_params_hash, c.embedding_model,
+               c.source_page_from, c.source_page_to, c.source_label,
+               c.chunk_level, c.parent_chunk_id,
+               d.doc_name
+        from kb_chunk c
+        inner join (
+            select doc_id, min(chunk_id) as min_id
+            from kb_chunk
+            where kb_id = #{kbId}
+              and (chunk_level is null or chunk_level = 'LEAF')
+            group by doc_id
+        ) t on c.chunk_id = t.min_id
+        left join kb_document d on c.doc_id = d.doc_id and d.del_flag = '0'
+        where c.kb_id = #{kbId}
+        order by c.doc_id asc
+    </select>
+
+    <select id="selectKbChunkById" parameterType="Long" resultMap="KbChunkResult">
+        <include refid="selectKbChunkVo"/>
+        where chunk_id = #{chunkId}
+    </select>
+
+    <select id="selectKbChunkList" parameterType="KbChunk" resultMap="KbChunkResult">
+        <include refid="selectKbChunkVo"/>
+        <where>
+            <if test="kbId != null">AND kb_id = #{kbId}</if>
+            <if test="docId != null">AND doc_id = #{docId}</if>
+        </where>
+        order by chunk_index asc
+    </select>
+
+    <!-- 兼容旧接口名:仅元数据,无向量(向量在独立表) -->
+    <select id="selectChunksWithEmbeddingByKbId" parameterType="Long" resultMap="KbChunkResult">
+        select c.chunk_id, c.kb_id, c.doc_id, c.chunk_index, c.content, c.heading_path,
+               c.block_type, c.token_count, c.embedding_dim,
+               c.chunker_strategy, c.chunk_params_hash, c.embedding_model,
+               c.source_page_from, c.source_page_to, c.source_label,
+               c.chunk_level, c.parent_chunk_id, c.create_time,
+               d.doc_name
+        from kb_chunk c
+        left join kb_document d on c.doc_id = d.doc_id and d.del_flag = '0'
+        where c.kb_id = #{kbId}
+          and c.embedding_dim &gt; 0
+          and (d.status is null or d.status = '0')
+        order by c.chunk_id asc
+    </select>
+
+    <select id="selectByDocId" parameterType="Long" resultMap="KbChunkResult">
+        <include refid="selectKbChunkVo"/>
+        where doc_id = #{docId}
+        order by chunk_index asc
+    </select>
+
+    <select id="selectByDocIdAndLevel" resultMap="KbChunkResult">
+        <include refid="selectKbChunkVo"/>
+        where doc_id = #{docId}
+        <choose>
+            <when test="chunkLevel != null and chunkLevel == 'LEAF'">
+                and (chunk_level is null or chunk_level = 'LEAF')
+            </when>
+            <when test="chunkLevel != null and chunkLevel != ''">
+                and chunk_level = #{chunkLevel}
+            </when>
+        </choose>
+        order by chunk_index asc
+    </select>
+
+    <select id="selectAdjacentLeaves" resultMap="KbChunkResult">
+        <include refid="selectKbChunkVo"/>
+        where doc_id = #{docId}
+          and (chunk_level is null or chunk_level = 'LEAF')
+          and chunk_index &gt;= (#{chunkIndex} - #{window})
+          and chunk_index &lt;= (#{chunkIndex} + #{window})
+          and chunk_index &lt;&gt; #{chunkIndex}
+        order by chunk_index asc
+    </select>
+
+    <select id="selectByChunkIds" resultMap="KbChunkResult">
+        select c.chunk_id, c.kb_id, c.doc_id, c.chunk_index, c.content, c.heading_path,
+               c.block_type, c.token_count, c.embedding_dim,
+               c.chunker_strategy, c.chunk_params_hash, c.embedding_model,
+               c.source_page_from, c.source_page_to, c.source_label,
+               c.chunk_level, c.parent_chunk_id, c.create_time,
+               d.doc_name
+        from kb_chunk c
+        left join kb_document d on c.doc_id = d.doc_id and d.del_flag = '0'
+        where c.chunk_id in
+        <foreach item="id" collection="chunkIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insertKbChunk" parameterType="KbChunk" useGeneratedKeys="true" keyProperty="chunkId">
+        insert into kb_chunk
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="kbId != null">kb_id,</if>
+            <if test="docId != null">doc_id,</if>
+            <if test="chunkIndex != null">chunk_index,</if>
+            <if test="content != null">content,</if>
+            <if test="headingPath != null">heading_path,</if>
+            <if test="blockType != null">block_type,</if>
+            <if test="tokenCount != null">token_count,</if>
+            <if test="embeddingDim != null">embedding_dim,</if>
+            <if test="chunkerStrategy != null">chunker_strategy,</if>
+            <if test="chunkParamsHash != null">chunk_params_hash,</if>
+            <if test="embeddingModel != null">embedding_model,</if>
+            <if test="sourcePageFrom != null">source_page_from,</if>
+            <if test="sourcePageTo != null">source_page_to,</if>
+            <if test="sourceLabel != null">source_label,</if>
+            <if test="chunkLevel != null">chunk_level,</if>
+            <if test="parentChunkId != null">parent_chunk_id,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="kbId != null">#{kbId},</if>
+            <if test="docId != null">#{docId},</if>
+            <if test="chunkIndex != null">#{chunkIndex},</if>
+            <if test="content != null">#{content},</if>
+            <if test="headingPath != null">#{headingPath},</if>
+            <if test="blockType != null">#{blockType},</if>
+            <if test="tokenCount != null">#{tokenCount},</if>
+            <if test="embeddingDim != null">#{embeddingDim},</if>
+            <if test="chunkerStrategy != null">#{chunkerStrategy},</if>
+            <if test="chunkParamsHash != null">#{chunkParamsHash},</if>
+            <if test="embeddingModel != null">#{embeddingModel},</if>
+            <if test="sourcePageFrom != null">#{sourcePageFrom},</if>
+            <if test="sourcePageTo != null">#{sourcePageTo},</if>
+            <if test="sourceLabel != null">#{sourceLabel},</if>
+            <if test="chunkLevel != null">#{chunkLevel},</if>
+            <if test="parentChunkId != null">#{parentChunkId},</if>
+            now()
+        </trim>
+    </insert>
+
+    <insert id="batchInsertKbChunk" useGeneratedKeys="true" keyProperty="chunkId">
+        insert into kb_chunk (
+            kb_id, doc_id, chunk_index, content, heading_path, block_type,
+            token_count, embedding_dim, chunker_strategy, chunk_params_hash,
+            embedding_model, source_page_from, source_page_to, source_label,
+            chunk_level, parent_chunk_id, create_time
+        ) values
+        <foreach item="item" collection="list" separator=",">
+            (
+                #{item.kbId}, #{item.docId}, #{item.chunkIndex}, #{item.content},
+                #{item.headingPath}, #{item.blockType}, #{item.tokenCount},
+                #{item.embeddingDim}, #{item.chunkerStrategy},
+                #{item.chunkParamsHash}, #{item.embeddingModel},
+                #{item.sourcePageFrom}, #{item.sourcePageTo}, #{item.sourceLabel},
+                #{item.chunkLevel}, #{item.parentChunkId}, now()
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectChunkIdsByDocId" parameterType="Long" resultType="Long">
+        select chunk_id from kb_chunk where doc_id = #{docId}
+    </select>
+
+    <delete id="deleteByDocId" parameterType="Long">
+        delete from kb_chunk where doc_id = #{docId}
+    </delete>
+
+    <delete id="deleteByKbId" parameterType="Long">
+        delete from kb_chunk where kb_id = #{kbId}
+    </delete>
+
+    <select id="countByDocId" parameterType="Long" resultType="int">
+        select count(1) from kb_chunk where doc_id = #{docId}
+    </select>
+
+</mapper>

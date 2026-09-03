@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiChatMessageMapper">
+
+    <resultMap type="com.ruoyi.system.domain.AiChatMessage" id="AiChatMessageResult">
+        <id     property="messageId"        column="message_id"/>
+        <result property="sessionId"        column="session_id"/>
+        <result property="runId"            column="run_id"/>
+        <result property="messageKind"      column="message_kind"/>
+        <result property="stepId"           column="step_id"/>
+        <result property="parentStepId"     column="parent_step_id"/>
+        <result property="agentId"          column="agent_id"/>
+        <result property="conversationId"   column="conversation_id"/>
+        <result property="subAgentId"       column="sub_agent_id"/>
+        <result property="messageType"      column="message_type"/>
+        <result property="content"          column="content"/>
+        <result property="visibleToLlm"     column="visible_to_llm"/>
+        <result property="summaryToId"       column="summary_to_id"/>
+        <result property="attachments"      column="attachments"/>
+        <result property="toolCalls"        column="tool_calls"/>
+        <result property="toolCallId"       column="tool_call_id"/>
+        <result property="toolName"         column="tool_name"/>
+        <result property="toolArgs"         column="tool_args"/>
+        <result property="toolArgsLength"   column="tool_args_length"/>
+        <result property="toolResult"       column="tool_result"/>
+        <result property="toolResultLength" column="tool_result_length"/>
+        <result property="hasFullToolResult" column="has_full_tool_result"/>
+        <result property="toolResultPath"   column="tool_result_path"/>
+        <result property="toolSource"       column="tool_source"/>
+        <result property="toolDurationMs"   column="tool_duration_ms"/>
+        <result property="toolSuccess"      column="tool_success"/>
+        <result property="pruned"           column="pruned"/>
+        <result property="tokens"           column="tokens"/>
+        <result property="promptTokens"     column="prompt_tokens"/>
+        <result property="completionTokens" column="completion_tokens"/>
+        <result property="modelName"        column="model_name"/>
+        <result property="usageSource"      column="usage_source"/>
+        <result property="createTime"       column="create_time"/>
+    </resultMap>
+
+    <sql id="columns">
+        message_id, session_id, run_id, message_kind, step_id, parent_step_id,
+        agent_id, conversation_id, sub_agent_id, message_type, content,
+        visible_to_llm, summary_to_id, attachments, tool_calls, tool_call_id, tool_name, tool_args,
+        tool_result, tool_result_path, tool_source, tool_duration_ms, tool_success, pruned, tokens,
+        prompt_tokens, completion_tokens, model_name, usage_source, create_time
+    </sql>
+
+    <!-- 只给前端 timeline:工具结果/入参截成预览,长度另给。禁止给 DbChatMemory 用。 -->
+    <sql id="columnsLite">
+        message_id, session_id, run_id, message_kind, step_id, parent_step_id,
+        agent_id, conversation_id, sub_agent_id, message_type, content,
+        visible_to_llm, summary_to_id, attachments, tool_calls, tool_call_id,
+        tool_name, tool_source,
+        tool_duration_ms, tool_success, pruned, tokens, prompt_tokens,
+        completion_tokens, model_name, usage_source, create_time,
+        left(tool_result, 200)             as tool_result,
+        char_length(tool_result)           as tool_result_length,
+        case when tool_result_path is not null or char_length(tool_result) &gt; 200 then true else false end as has_full_tool_result,
+        left(tool_args, 500)               as tool_args,
+        char_length(tool_args)             as tool_args_length
+    </sql>
+
+    <select id="selectMessageById" resultMap="AiChatMessageResult">
+        select <include refid="columns"/>
+          from ai_chat_message
+         where message_id = #{messageId}
+    </select>
+
+    <select id="selectByRunAndKind" resultMap="AiChatMessageResult">
+        select <include refid="columns"/> from ai_chat_message
+         where run_id = #{runId} and message_kind = #{messageKind}
+         order by message_id desc limit 1
+    </select>
+
+    <insert id="insertMessage" parameterType="com.ruoyi.system.domain.AiChatMessage"
+            useGeneratedKeys="true" keyProperty="messageId">
+        insert into ai_chat_message
+        (session_id, run_id, message_kind, step_id, parent_step_id,
+         agent_id, conversation_id, sub_agent_id, message_type, content,
+         visible_to_llm, summary_to_id, attachments, tool_calls, tool_call_id, tool_name, tool_args,
+         tool_result, tool_result_path, tool_source, tool_duration_ms, tool_success, pruned, tokens,
+         prompt_tokens, completion_tokens, model_name, usage_source, create_time)
+        values
+        (#{sessionId}, #{runId}, #{messageKind}, #{stepId}, #{parentStepId},
+         #{agentId}, #{conversationId}, #{subAgentId}, #{messageType}, #{content},
+         #{visibleToLlm}, #{summaryToId}, #{attachments}, #{toolCalls}, #{toolCallId}, #{toolName}, #{toolArgs},
+         #{toolResult}, #{toolResultPath}, #{toolSource}, #{toolDurationMs}, #{toolSuccess}, #{pruned}, #{tokens},
+         #{promptTokens}, #{completionTokens}, #{modelName}, #{usageSource}, #{createTime})
+    </insert>
+
+    <select id="selectLatestSummary" resultMap="AiChatMessageResult">
+        select <include refid="columns"/> from ai_chat_message
+         where conversation_id = #{conversationId} and message_type = 'SUMMARY'
+         order by message_id desc limit 1
+    </select>
+
+    <select id="selectVisible" resultMap="AiChatMessageResult">
+        select <include refid="columns"/> from ai_chat_message
+         where conversation_id = #{conversationId}
+           and visible_to_llm = '0'
+           and message_type &lt;&gt; 'SUMMARY'
+           and message_id &gt; #{fromId}
+         order by message_id asc
+    </select>
+
+    <select id="selectByRunId" resultMap="AiChatMessageResult">
+        select <include refid="columns"/> from ai_chat_message
+         where run_id = #{runId}
+         order by message_id asc
+    </select>
+
+    <select id="sumTokensSinceSummary" resultType="long">
+        <!-- 工具往返改造后 TOOL / 中间 ASSISTANT 行都是 visible_to_llm='0'，
+             一个条件就够了。THINKING 是 '1'，天然排除在预算之外(纯展示)。
+             历史数据里 TOOL 行是 '1'，它们也确实不再进上下文，不计入是正确的。 -->
+        select ifnull(sum(tokens), 0) from ai_chat_message
+         where conversation_id = #{conversationId}
+           and message_id &gt; #{lastSummaryId}
+           and visible_to_llm = '0'
+    </select>
+
+    <!-- 工具往返 tokens 之和:TOOL 行 + 带 tool_calls 的中间 ASSISTANT 行。
+         分类计量时从 messages 扣除，归到 toolCalls 段 -->
+    <select id="sumToolTokensSinceSummary" resultType="long">
+        select ifnull(sum(tokens), 0) from ai_chat_message
+         where conversation_id = #{conversationId}
+           and message_id &gt; #{lastSummaryId}
+           and visible_to_llm = '0'
+           and (message_type = 'TOOL'
+                or (message_type = 'ASSISTANT' and tool_calls is not null))
+    </select>
+
+    <select id="selectTimelineBySession" resultMap="AiChatMessageResult">
+        select <include refid="columnsLite"/> from ai_chat_message
+         where session_id = #{sessionId}
+         order by message_id asc
+    </select>
+
+    <select id="selectTimelinePage" resultMap="AiChatMessageResult">
+        select <include refid="columnsLite"/> from ai_chat_message
+         where session_id = #{sessionId}
+        <if test="beforeMessageId != null">
+           and message_id &lt; #{beforeMessageId}
+        </if>
+         order by message_id desc
+         limit #{limit}
+    </select>
+
+    <select id="selectPrevUserBefore" resultMap="AiChatMessageResult">
+        select <include refid="columns"/> from ai_chat_message
+         where session_id = #{sessionId}
+           and message_type = 'USER'
+           and message_id &lt; #{firstMessageId}
+        <if test="beforeMessageId != null">
+           and message_id &lt; #{beforeMessageId}
+        </if>
+         order by message_id desc
+         limit 1
+    </select>
+
+    <select id="selectTimelineRangeFrom" resultMap="AiChatMessageResult">
+        select <include refid="columnsLite"/> from ai_chat_message
+         where session_id = #{sessionId}
+           and message_id &gt;= #{fromMessageId}
+        <if test="toMessageId != null">
+           and message_id &lt; #{toMessageId}
+        </if>
+         order by message_id asc
+    </select>
+
+    <select id="selectUserMessagesBySession" resultMap="AiChatMessageResult">
+        select message_id, session_id, run_id, agent_id, content, create_time
+        from ai_chat_message
+        where session_id = #{sessionId} and message_type = 'USER'
+        order by message_id asc
+        limit #{limit}
+    </select>
+
+    <select id="countBefore" resultType="int">
+        select count(1) from ai_chat_message
+         where session_id = #{sessionId}
+           and message_id &lt; #{messageId}
+    </select>
+
+    <select id="countBySession" resultType="int">
+        select count(1) from ai_chat_message where session_id = #{sessionId}
+    </select>
+
+    <delete id="deleteByConversationId">
+        delete from ai_chat_message where conversation_id = #{conversationId}
+    </delete>
+
+    <delete id="deleteBySessionId">
+        delete from ai_chat_message where session_id = #{sessionId}
+    </delete>
+
+    <select id="selectLatestAssistant" resultMap="AiChatMessageResult">
+        <!-- 必须限定 visible_to_llm='0'：中间过程文本也是 ASSISTANT 类型(visible='1')，
+             回填真实 usage 只能打到最终回答那一行上 -->
+        select <include refid="columns"/> from ai_chat_message
+         where conversation_id = #{conversationId}
+           and message_type = 'ASSISTANT'
+           and visible_to_llm = '0'
+         order by message_id desc limit 1
+    </select>
+
+    <select id="selectLatestUser" resultMap="AiChatMessageResult">
+        select <include refid="columns"/> from ai_chat_message
+         where conversation_id = #{conversationId}
+           and message_type = 'USER'
+         order by message_id desc limit 1
+    </select>
+
+    <select id="selectToolResultPathsFrom" resultType="string">
+        select tool_result_path from ai_chat_message
+         where conversation_id = #{conversationId}
+           and message_id &gt;= #{fromId}
+           and tool_result_path is not null
+           and tool_result_path != ''
+    </select>
+
+    <select id="selectIdsFrom" resultType="long">
+        <!-- 只查 ID：content / tool_args / tool_result 都是 longtext，
+             回滚时为了几个 ID 走全字段查询会把整个会话的正文拉回内存。 -->
+        select message_id from ai_chat_message
+         where conversation_id = #{conversationId}
+           and message_id &gt;= #{fromId}
+         order by message_id asc
+    </select>
+
+    <delete id="deleteFromMessageId">
+        <!-- 连 USER 一起删：前端会用原文重发，advisor 会重新写入 USER 行。
+             若保留 USER，重发时会插入第二条相同的 USER，上下文出现重复。 -->
+        delete from ai_chat_message
+         where conversation_id = #{conversationId}
+           and message_id &gt;= #{fromId}
+    </delete>
+
+    <update id="updateAttachmentsById">
+        update ai_chat_message set attachments = #{attachments} where message_id = #{messageId}
+    </update>
+
+    <!-- 只回填归因字段,不动 tokens(tokens 统一走 insert 时的 TokenEstimator) -->
+    <update id="updateAttributionById">
+        update ai_chat_message
+           set prompt_tokens = #{promptTokens},
+               completion_tokens = #{completionTokens},
+               model_name = #{modelName},
+               usage_source = #{usageSource}
+         where message_id = #{messageId}
+    </update>
+
+    <update id="markPrunedForTest">
+        update ai_chat_message set pruned = '1' where message_id = #{messageId}
+    </update>
+
+    <select id="selectByToolCallId" resultMap="AiChatMessageResult">
+        select <include refid="columns"/> from ai_chat_message
+         where conversation_id = #{conversationId}
+           and tool_call_id = #{toolCallId}
+         limit 1
+    </select>
+
+    <update id="markToolPruned">
+        update ai_chat_message
+           set pruned = '1', tokens = #{tokens}
+         where conversation_id = #{conversationId}
+           and tool_call_id = #{toolCallId}
+    </update>
+
+    <!-- ASSISTANT 行没有 tool_call_id,只能按 tool_calls JSON 里是否含该 id 匹配。
+         "id":"call_x" 这个片段在 JSON 里唯一,不会误伤别的字段。 -->
+    <update id="markAssistantPruned">
+        update ai_chat_message
+           set pruned = '1'
+         where conversation_id = #{conversationId}
+           and message_type = 'ASSISTANT'
+           and tool_calls like concat('%"id":"', #{toolCallId}, '"%')
+    </update>
+
+    <!-- 测试专用:H2 语法,普通运行不触发 -->
+    <update id="createTableForTest">
+        create table if not exists ai_chat_message (
+          message_id bigint auto_increment,
+          session_id varchar(64) not null,
+          run_id varchar(64),
+          message_kind varchar(32),
+          step_id varchar(128),
+          parent_step_id varchar(128),
+          agent_id bigint,
+          conversation_id varchar(128) not null,
+          sub_agent_id bigint,
+          message_type varchar(20) not null,
+          content clob,
+          visible_to_llm varchar(1) default '0',
+          summary_to_id bigint,
+          attachments clob,
+          tool_calls clob,
+          tool_call_id varchar(64),
+          tool_name varchar(100),
+          tool_args clob,
+          tool_result clob,
+          tool_result_path varchar(255),
+          tool_source varchar(20),
+          tool_duration_ms bigint,
+          tool_success varchar(1),
+          pruned varchar(1) default '0',
+          tokens int default 0,
+          prompt_tokens int default 0,
+          completion_tokens int default 0,
+          model_name varchar(100),
+          usage_source varchar(1) default '1',
+          create_time timestamp,
+          primary key (message_id)
+        )
+    </update>
+
+    <update id="dropTableForTest">
+        drop table if exists ai_chat_message
+    </update>
+
+</mapper>

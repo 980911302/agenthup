@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiTraceSpanMapper">
+
+    <resultMap id="AiTraceSpanResult" type="com.ruoyi.system.domain.AiTraceSpan">
+        <id     property="spanId"           column="span_id"/>
+        <result property="runId"            column="run_id"/>
+        <result property="sessionId"        column="session_id"/>
+        <result property="parentSpanId"     column="parent_span_id"/>
+        <result property="spanType"         column="span_type"/>
+        <result property="agentId"          column="agent_id"/>
+        <result property="subAgentId"       column="sub_agent_id"/>
+        <result property="modelId"          column="model_id"/>
+        <result property="modelName"        column="model_name"/>
+        <result property="toolName"         column="tool_name"/>
+        <result property="toolCallId"       column="tool_call_id"/>
+        <result property="callSeq"          column="call_seq"/>
+        <result property="depth"            column="depth"/>
+        <result property="status"           column="status"/>
+        <result property="promptTokens"     column="prompt_tokens"/>
+        <result property="completionTokens" column="completion_tokens"/>
+        <result property="totalTokens"      column="total_tokens"/>
+        <result property="cacheHitTokens"   column="cache_hit_tokens"/>
+        <result property="cacheMissTokens"  column="cache_miss_tokens"/>
+        <result property="usageSource"      column="usage_source"/>
+        <result property="durationMs"       column="duration_ms"/>
+        <result property="startedAt"        column="started_at"/>
+        <result property="finishedAt"       column="finished_at"/>
+        <result property="createTime"       column="create_time"/>
+    </resultMap>
+
+    <insert id="insertSpan" parameterType="com.ruoyi.system.domain.AiTraceSpan" useGeneratedKeys="true" keyProperty="spanId">
+        insert into ai_trace_span
+        (run_id, session_id, parent_span_id, span_type, agent_id, sub_agent_id,
+         model_id, model_name, tool_name, tool_call_id, call_seq, depth, status,
+         prompt_tokens, completion_tokens, total_tokens, cache_hit_tokens, cache_miss_tokens,
+         usage_source, duration_ms, started_at, finished_at, create_time)
+        values
+        (#{runId}, #{sessionId}, #{parentSpanId}, #{spanType}, #{agentId}, #{subAgentId},
+         #{modelId}, #{modelName}, #{toolName}, #{toolCallId}, #{callSeq}, #{depth}, #{status},
+         #{promptTokens}, #{completionTokens}, #{totalTokens}, #{cacheHitTokens}, #{cacheMissTokens},
+         #{usageSource}, #{durationMs}, #{startedAt}, #{finishedAt}, #{createTime})
+    </insert>
+
+    <update id="updateFinish" parameterType="com.ruoyi.system.domain.AiTraceSpan">
+        update ai_trace_span
+        set status = #{status},
+            duration_ms = #{durationMs},
+            finished_at = #{finishedAt},
+            prompt_tokens = #{promptTokens},
+            completion_tokens = #{completionTokens},
+            total_tokens = #{totalTokens},
+            cache_hit_tokens = #{cacheHitTokens},
+            cache_miss_tokens = #{cacheMissTokens},
+            usage_source = #{usageSource}
+        where span_id = #{spanId}
+    </update>
+
+    <select id="selectByRunId" parameterType="String" resultMap="AiTraceSpanResult">
+        select * from ai_trace_span where run_id = #{runId} order by started_at asc, span_id asc
+    </select>
+
+    <select id="selectTurnOverview" resultMap="AiTraceSpanResult">
+        select * from ai_trace_span
+        where session_id = #{sessionId} and span_type = 'turn'
+        order by started_at desc
+        limit #{limit}
+    </select>
+
+    <select id="selectRunSummaryBySession" resultType="java.util.Map">
+        select run_id                                                    as runId,
+               max(started_at)                                          as startedAt,
+               max(finished_at)                                         as finishedAt,
+               max(case when span_type = 'turn' then status end)        as status,
+               sum(case when span_type = 'llm' then 1 else 0 end)       as llmCount,
+               sum(case when span_type = 'tool' then 1 else 0 end)      as toolCount,
+               sum(case when span_type = 'subagent' then 1 else 0 end)  as subagentCount,
+               sum(ifnull(total_tokens, 0))                             as totalTokens,
+               max(case when span_type = 'turn' then duration_ms end)   as durationMs
+        from ai_trace_span
+        where session_id = #{sessionId}
+        group by run_id
+        order by max(started_at) desc
+        limit #{limit}
+    </select>
+</mapper>

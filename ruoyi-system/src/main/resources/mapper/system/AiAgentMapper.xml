@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiAgentMapper">
+
+    <resultMap type="AiAgent" id="AiAgentResult">
+        <result property="agentId"          column="agent_id"          />
+        <result property="agentCode"        column="agent_code"        />
+        <result property="agentName"        column="agent_name"        />
+        <result property="agentDesc"        column="agent_desc"        />
+        <result property="agentRole"        column="agent_role"        />
+        <result property="icon"             column="icon"              />
+        <result property="theme"            column="theme"             />
+        <result property="loadLocalDoc"     column="load_local_doc"    />
+        <result property="isPublic"         column="is_public"         />
+        <result property="modelCode"        column="model_code"        />
+        <result property="imageModelCode"   column="image_model_code"  />
+        <result property="videoModelCode"   column="video_model_code"  />
+        <result property="ttsModelCode"     column="tts_model_code"    />
+        <result property="sort"             column="sort"              />
+        <result property="status"           column="status"            />
+        <result property="delFlag"          column="del_flag"          />
+        <result property="createBy"         column="create_by"         />
+        <result property="createTime"       column="create_time"       />
+        <result property="updateBy"         column="update_by"         />
+        <result property="updateTime"       column="update_time"       />
+        <result property="remark"           column="remark"            />
+        <result property="modelDisplayName" column="model_display_name"/>
+        <result property="skillCount"       column="skill_count"       />
+        <result property="toolCount"        column="tool_count"        />
+        <result property="childCount"       column="child_count"       />
+    </resultMap>
+
+    <resultMap type="com.ruoyi.system.domain.AiAgentChild" id="AiAgentChildResult">
+        <result property="parentAgentId"   column="parent_agent_id"   />
+        <result property="childAgentId"    column="child_agent_id"    />
+        <result property="sort"            column="sort"              />
+        <result property="triggerDesc"     column="trigger_desc"      />
+        <result property="childAgentName"  column="child_agent_name"  />
+        <result property="childAgentCode"  column="child_agent_code"  />
+    </resultMap>
+
+    <sql id="selectAiAgentVo">
+        select a.agent_id, a.agent_code, a.agent_name, a.agent_desc, a.agent_role,
+               a.icon, a.theme,
+               a.load_local_doc, a.is_public, a.model_code, a.image_model_code, a.video_model_code, a.tts_model_code, a.sort, a.status, a.del_flag,
+               a.create_by, a.create_time, a.update_by, a.update_time, a.remark,
+               m.display_name as model_display_name,
+               (select count(1) from ai_agent_skill s where s.agent_id = a.agent_id) as skill_count,
+               (select count(1) from ai_agent_tool  t where t.agent_id = a.agent_id) as tool_count,
+               (select count(1) from ai_agent_child c where c.parent_agent_id = a.agent_id) as child_count
+        from ai_agent a
+        left join ai_model m on a.model_code = m.model_code and m.del_flag = '0'
+    </sql>
+
+    <!-- ==================== ai_agent 主表 ==================== -->
+
+    <select id="selectAiAgentById" parameterType="Long" resultMap="AiAgentResult">
+        <include refid="selectAiAgentVo"/>
+        where a.del_flag = '0' and a.agent_id = #{agentId}
+    </select>
+
+    <select id="selectAiAgentList" parameterType="AiAgent" resultMap="AiAgentResult">
+        <include refid="selectAiAgentVo"/>
+        <where>
+            a.del_flag = '0'
+            <if test="agentCode != null and agentCode != ''">
+                AND a.agent_code like concat('%', #{agentCode}, '%')
+            </if>
+            <if test="agentName != null and agentName != ''">
+                AND a.agent_name like concat('%', #{agentName}, '%')
+            </if>
+            <if test="modelCode != null and modelCode != ''">
+                AND a.model_code = #{modelCode}
+            </if>
+            <if test="status != null and status != ''">
+                AND a.status = #{status}
+            </if>
+            <!-- 私有智能体仅创建者可见；无登录态时也不能退化为全量查询。 -->
+            AND (coalesce(a.is_public, '0') = '1' OR a.create_by = #{accessUserName})
+        </where>
+        order by a.sort asc, a.agent_id desc
+    </select>
+
+    <!-- 后台管理端读取：权限已由 Controller 校验，不叠加 desktop 的本人/公共可见性范围。 -->
+    <select id="selectAiAgentListForManagement" parameterType="AiAgent" resultMap="AiAgentResult">
+        <include refid="selectAiAgentVo"/>
+        <where>
+            a.del_flag = '0'
+            <if test="agentCode != null and agentCode != ''">
+                AND a.agent_code like concat('%', #{agentCode}, '%')
+            </if>
+            <if test="agentName != null and agentName != ''">
+                AND a.agent_name like concat('%', #{agentName}, '%')
+            </if>
+            <if test="modelCode != null and modelCode != ''">
+                AND a.model_code = #{modelCode}
+            </if>
+            <if test="status != null and status != ''">
+                AND a.status = #{status}
+            </if>
+        </where>
+        order by a.sort asc, a.agent_id desc
+    </select>
+
+    <insert id="insertAiAgent" parameterType="AiAgent" useGeneratedKeys="true" keyProperty="agentId">
+        insert into ai_agent
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="agentCode != null and agentCode != ''">agent_code,</if>
+            <if test="agentName != null and agentName != ''">agent_name,</if>
+            <if test="agentDesc != null and agentDesc != ''">agent_desc,</if>
+            <if test="agentRole != null and agentRole != ''">agent_role,</if>
+            <if test="icon != null and icon != ''">icon,</if>
+            <if test="theme != null and theme != ''">theme,</if>
+            <if test="loadLocalDoc != null and loadLocalDoc != ''">load_local_doc,</if>
+            <if test="isPublic != null and isPublic != ''">is_public,</if>
+            <if test="modelCode != null and modelCode != ''">model_code,</if>
+            <if test="imageModelCode != null and imageModelCode != ''">image_model_code,</if>
+            <if test="videoModelCode != null and videoModelCode != ''">video_model_code,</if>
+            <if test="ttsModelCode != null and ttsModelCode != ''">tts_model_code,</if>
+            <if test="sort != null">sort,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="agentCode != null and agentCode != ''">#{agentCode},</if>
+            <if test="agentName != null and agentName != ''">#{agentName},</if>
+            <if test="agentDesc != null and agentDesc != ''">#{agentDesc},</if>
+            <if test="agentRole != null and agentRole != ''">#{agentRole},</if>
+            <if test="icon != null and icon != ''">#{icon},</if>
+            <if test="theme != null and theme != ''">#{theme},</if>
+            <if test="loadLocalDoc != null and loadLocalDoc != ''">#{loadLocalDoc},</if>
+            <if test="isPublic != null and isPublic != ''">#{isPublic},</if>
+            <if test="modelCode != null and modelCode != ''">#{modelCode},</if>
+            <if test="imageModelCode != null and imageModelCode != ''">#{imageModelCode},</if>
+            <if test="videoModelCode != null and videoModelCode != ''">#{videoModelCode},</if>
+            <if test="ttsModelCode != null and ttsModelCode != ''">#{ttsModelCode},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateAiAgent" parameterType="AiAgent">
+        update ai_agent
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="agentCode != null and agentCode != ''">agent_code = #{agentCode},</if>
+            <if test="agentName != null and agentName != ''">agent_name = #{agentName},</if>
+            <if test="agentDesc != null">agent_desc = #{agentDesc},</if>
+            <if test="agentRole != null">agent_role = #{agentRole},</if>
+            <if test="icon != null">icon = #{icon},</if>
+            <if test="theme != null">theme = #{theme},</if>
+            <if test="loadLocalDoc != null and loadLocalDoc != ''">load_local_doc = #{loadLocalDoc},</if>
+            <if test="isPublic != null and isPublic != ''">is_public = #{isPublic},</if>
+            <if test="modelCode != null">model_code = #{modelCode},</if>
+            <if test="imageModelCode != null">image_model_code = #{imageModelCode},</if>
+            <if test="videoModelCode != null">video_model_code = #{videoModelCode},</if>
+            <if test="ttsModelCode != null">tts_model_code = #{ttsModelCode},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </trim>
+        where agent_id = #{agentId}
+    </update>
+
+    <!-- 含软删,不 join 计数(复活只需主键与 del_flag) -->
+    <select id="selectAiAgentByCodeIncludeDeleted" parameterType="String" resultMap="AiAgentResult">
+        select a.agent_id, a.agent_code, a.agent_name, a.agent_desc, a.agent_role,
+               a.icon, a.theme, a.load_local_doc, a.is_public, a.model_code, a.image_model_code, a.video_model_code, a.tts_model_code,
+               a.sort, a.status, a.del_flag,
+               a.create_by, a.create_time, a.update_by, a.update_time, a.remark
+          from ai_agent a
+         where a.agent_code = #{agentCode}
+         order by a.agent_id desc
+         limit 1
+    </select>
+
+    <update id="reactivateAiAgent" parameterType="AiAgent">
+        update ai_agent
+           set del_flag = '0',
+               status = '0',
+               agent_name = #{agentName},
+               agent_desc = #{agentDesc},
+               agent_role = #{agentRole},
+               icon = #{icon},
+               theme = #{theme},
+               load_local_doc = #{loadLocalDoc},
+               is_public = coalesce(#{isPublic}, '0'),
+               model_code = #{modelCode},
+               image_model_code = #{imageModelCode},
+               video_model_code = #{videoModelCode},
+               tts_model_code = #{ttsModelCode},
+               sort = #{sort},
+               remark = #{remark},
+               update_by = #{updateBy},
+               update_time = sysdate()
+         where agent_id = #{agentId}
+    </update>
+
+    <delete id="deleteAiAgentById" parameterType="Long">
+        update ai_agent set del_flag = '2' where agent_id = #{agentId}
+    </delete>
+
+    <delete id="deleteAiAgentByIds" parameterType="Long">
+        update ai_agent set del_flag = '2' where agent_id in
+        <foreach item="agentId" collection="array" open="(" separator="," close=")">
+            #{agentId}
+        </foreach>
+    </delete>
+
+    <!-- ==================== ai_agent_skill 关联 ==================== -->
+
+    <select id="selectSkillIdsByAgentId" parameterType="Long" resultType="Long">
+        select skill_id from ai_agent_skill where agent_id = #{agentId} order by sort asc
+    </select>
+
+    <insert id="batchInsertAgentSkill">
+        insert into ai_agent_skill(agent_id, skill_id, sort) values
+        <foreach item="skillId" index="index" collection="skillIds" separator=",">
+            (#{agentId}, #{skillId}, #{index})
+        </foreach>
+    </insert>
+
+    <delete id="deleteAgentSkillByAgentId" parameterType="Long">
+        delete from ai_agent_skill where agent_id = #{agentId}
+    </delete>
+
+    <!-- ==================== ai_agent_tool 关联 ==================== -->
+
+    <select id="selectToolIdsByAgentId" parameterType="Long" resultType="Long">
+        select tool_id from ai_agent_tool where agent_id = #{agentId} order by sort asc
+    </select>
+
+    <insert id="batchInsertAgentTool">
+        insert into ai_agent_tool(agent_id, tool_id, sort) values
+        <foreach item="toolId" index="index" collection="toolIds" separator=",">
+            (#{agentId}, #{toolId}, #{index})
+        </foreach>
+    </insert>
+
+    <delete id="deleteAgentToolByAgentId" parameterType="Long">
+        delete from ai_agent_tool where agent_id = #{agentId}
+    </delete>
+
+    <delete id="deleteAgentToolByToolIds">
+        <if test="toolIds != null and toolIds.length > 0">
+            delete from ai_agent_tool where tool_id in
+            <foreach item="toolId" collection="toolIds" open="(" separator="," close=")">
+                #{toolId}
+            </foreach>
+        </if>
+    </delete>
+
+    <!-- ==================== ai_agent_child 关联 ==================== -->
+
+    <select id="selectChildAgentsByAgentId" parameterType="Long" resultMap="AiAgentChildResult">
+        select c.parent_agent_id, c.child_agent_id, c.sort, c.trigger_desc,
+               a.agent_name as child_agent_name, a.agent_code as child_agent_code
+        from ai_agent_child c
+        left join ai_agent a on c.child_agent_id = a.agent_id and a.del_flag = '0'
+        where c.parent_agent_id = #{agentId}
+        order by c.sort asc
+    </select>
+
+    <insert id="batchInsertAgentChild">
+        insert into ai_agent_child(parent_agent_id, child_agent_id, sort, trigger_desc) values
+        <foreach item="item" index="index" collection="list" separator=",">
+            (#{item.parentAgentId}, #{item.childAgentId}, #{item.sort}, #{item.triggerDesc})
+        </foreach>
+    </insert>
+
+    <delete id="deleteAgentChildByAgentId" parameterType="Long">
+        delete from ai_agent_child where parent_agent_id = #{agentId}
+    </delete>
+
+</mapper>

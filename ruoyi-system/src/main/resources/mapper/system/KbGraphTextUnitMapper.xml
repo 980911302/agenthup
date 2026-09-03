@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.KbGraphTextUnitMapper">
+
+    <resultMap type="KbGraphTextUnit" id="KbGraphTextUnitResult">
+        <result property="textUnitId"       column="text_unit_id" />
+        <result property="kbId"             column="kb_id" />
+        <result property="docId"            column="doc_id" />
+        <result property="ordinal"          column="ordinal" />
+        <result property="content"          column="content" />
+        <result property="headingPath"      column="heading_path" />
+        <result property="blockType"        column="block_type" />
+        <result property="sourcePageFrom"   column="source_page_from" />
+        <result property="sourcePageTo"     column="source_page_to" />
+        <result property="sourceLabel"      column="source_label" />
+        <result property="tokenCount"       column="token_count" />
+        <result property="contentHash"      column="content_hash" />
+        <result property="parserVersion"    column="parser_version" />
+        <result property="graphUnitVersion" column="graph_unit_version" />
+        <result property="unitParamsHash"   column="unit_params_hash" />
+        <result property="generation"       column="generation" />
+        <result property="runId"            column="run_id" />
+        <result property="createTime"       column="create_time" />
+    </resultMap>
+
+    <insert id="insert" parameterType="KbGraphTextUnit">
+        insert into kb_graph_text_unit (
+            text_unit_id, kb_id, doc_id, ordinal, content, heading_path, block_type,
+            source_page_from, source_page_to, source_label, token_count, content_hash,
+            parser_version, graph_unit_version, unit_params_hash, generation, run_id, create_time
+        ) values (
+            #{textUnitId}, #{kbId}, #{docId}, #{ordinal}, #{content}, #{headingPath}, #{blockType},
+            #{sourcePageFrom}, #{sourcePageTo}, #{sourceLabel}, #{tokenCount}, #{contentHash},
+            #{parserVersion}, #{graphUnitVersion}, #{unitParamsHash}, #{generation}, #{runId}, now()
+        )
+    </insert>
+
+    <insert id="batchInsert">
+        insert into kb_graph_text_unit (
+            text_unit_id, kb_id, doc_id, ordinal, content, heading_path, block_type,
+            source_page_from, source_page_to, source_label, token_count, content_hash,
+            parser_version, graph_unit_version, unit_params_hash, generation, run_id, create_time
+        ) values
+        <foreach item="item" collection="list" separator=",">
+            (
+                #{item.textUnitId}, #{item.kbId}, #{item.docId}, #{item.ordinal}, #{item.content},
+                #{item.headingPath}, #{item.blockType}, #{item.sourcePageFrom}, #{item.sourcePageTo},
+                #{item.sourceLabel}, #{item.tokenCount}, #{item.contentHash},
+                #{item.parserVersion}, #{item.graphUnitVersion}, #{item.unitParamsHash},
+                #{item.generation}, #{item.runId}, now()
+            )
+        </foreach>
+    </insert>
+
+    <insert id="insertChunkMapping">
+        insert into kb_graph_text_unit_chunk (text_unit_id, chunk_id)
+        values (#{textUnitId}, #{chunkId})
+        on conflict do nothing
+    </insert>
+
+    <insert id="batchInsertChunkMappings">
+        insert into kb_graph_text_unit_chunk (text_unit_id, chunk_id) values
+        <foreach item="cid" collection="chunkIds" separator=",">
+            (#{textUnitId}, #{cid})
+        </foreach>
+        on conflict do nothing
+    </insert>
+
+    <select id="selectByDocId" parameterType="Long" resultMap="KbGraphTextUnitResult">
+        select text_unit_id, kb_id, doc_id, ordinal, content, heading_path, block_type,
+               source_page_from, source_page_to, source_label, token_count, content_hash,
+               parser_version, graph_unit_version, unit_params_hash, generation, run_id, create_time
+          from kb_graph_text_unit
+         where doc_id = #{docId}
+         order by ordinal asc
+    </select>
+
+    <select id="selectChunkIdsByTextUnitId" parameterType="Long" resultType="Long">
+        select chunk_id from kb_graph_text_unit_chunk where text_unit_id = #{textUnitId}
+    </select>
+
+    <delete id="deleteMappingsByDocId" parameterType="Long">
+        delete from kb_graph_text_unit_chunk
+         where text_unit_id in (select text_unit_id from kb_graph_text_unit where doc_id = #{docId})
+    </delete>
+
+    <delete id="deleteByDocId" parameterType="Long">
+        delete from kb_graph_text_unit where doc_id = #{docId}
+    </delete>
+
+    <delete id="deleteMappingsByKbId" parameterType="Long">
+        delete from kb_graph_text_unit_chunk
+         where text_unit_id in (select text_unit_id from kb_graph_text_unit where kb_id = #{kbId})
+    </delete>
+
+    <delete id="deleteByKbId" parameterType="Long">
+        delete from kb_graph_text_unit where kb_id = #{kbId}
+    </delete>
+</mapper>

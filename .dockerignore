@@ -1,0 +1,26 @@
+# 后端镜像 build context 用,排除非必要文件
+# 注意:不能排除 target/ 里的 ruoyi-admin.jar(后端 Dockerfile 要 COPY)
+
+.git
+.gitignore
+.github
+.idea
+.vscode
+.superpowers
+.zcode
+.DS_Store
+*.iml
+*.iws
+*.ipr
+
+# 其他模块的 target(保留 ruoyi-admin/target 给后端用)
+ruoyi-common/target
+ruoyi-framework/target
+ruoyi-generator/target
+ruoyi-quartz/target
+ruoyi-system/target
+
+# 前端不要打进后端镜像
+ruoyi-ui/node_modules
+ruoyi-ui/dist
+ruoyi-ui/.git

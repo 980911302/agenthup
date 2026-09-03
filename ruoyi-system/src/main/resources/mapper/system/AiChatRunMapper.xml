@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiChatRunMapper">
+
+    <resultMap type="com.ruoyi.system.domain.AiChatRun" id="AiChatRunResult">
+        <id property="runId" column="run_id"/>
+        <result property="sessionId" column="session_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="selectedModelId" column="selected_model_id"/>
+        <result property="selectedModelCode" column="selected_model_code"/>
+        <result property="effectiveSkillIds" column="effective_skill_ids"/>
+        <result property="userId" column="user_id"/>
+        <result property="clientRequestId" column="client_request_id"/>
+        <result property="activeKey" column="active_key"/>
+        <result property="status" column="status"/>
+        <result property="inputText" column="input_text"/>
+        <result property="attachments" column="attachments"/>
+        <result property="requestMessageId" column="request_message_id"/>
+        <result property="responseMessageId" column="response_message_id"/>
+        <result property="lastEventSeq" column="last_event_seq"/>
+        <result property="snapshotSeq" column="snapshot_seq"/>
+        <result property="cancelRequested" column="cancel_requested"/>
+        <result property="workerId" column="worker_id"/>
+        <result property="errorCode" column="error_code"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="startedTime" column="started_time"/>
+        <result property="heartbeatTime" column="heartbeat_time"/>
+        <result property="finishedTime" column="finished_time"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="columns">
+        run_id, session_id, agent_id, selected_model_id, selected_model_code, effective_skill_ids,
+        user_id, client_request_id, active_key, status,
+        input_text, attachments, request_message_id, response_message_id, last_event_seq, snapshot_seq,
+        cancel_requested, worker_id, error_code, error_message, started_time, heartbeat_time,
+        finished_time, create_time, update_time
+    </sql>
+
+    <insert id="insertAiChatRun" parameterType="com.ruoyi.system.domain.AiChatRun">
+        insert ignore into ai_chat_run
+        (run_id, session_id, agent_id, selected_model_id, selected_model_code, effective_skill_ids,
+         user_id, client_request_id, active_key, status,
+         input_text, attachments, last_event_seq, snapshot_seq, cancel_requested, create_time, update_time)
+        values
+        (#{runId}, #{sessionId}, #{agentId}, #{selectedModelId}, #{selectedModelCode}, #{effectiveSkillIds},
+         #{userId}, #{clientRequestId}, #{activeKey}, #{status},
+         #{inputText}, #{attachments}, 0, 0, '0', #{createTime}, #{updateTime})
+    </insert>
+
+    <select id="selectAiChatRunById" resultMap="AiChatRunResult">
+        select <include refid="columns"/> from ai_chat_run where run_id = #{runId}
+    </select>
+
+    <select id="selectByClientRequest" resultMap="AiChatRunResult">
+        select <include refid="columns"/> from ai_chat_run
+         where user_id = #{userId} and client_request_id = #{clientRequestId}
+         limit 1
+    </select>
+
+    <select id="selectActiveBySession" resultMap="AiChatRunResult">
+        select <include refid="columns"/> from ai_chat_run
+         where active_key = #{sessionId}
+         limit 1
+    </select>
+
+    <select id="selectLatestBySession" resultMap="AiChatRunResult">
+        select <include refid="columns"/> from ai_chat_run
+         where session_id = #{sessionId}
+         order by create_time desc limit 1
+    </select>
+
+    <select id="selectByRunIds" resultMap="AiChatRunResult">
+        select <include refid="columns"/> from ai_chat_run
+         where run_id in
+        <foreach item="runId" collection="runIds" open="(" separator="," close=")">
+            #{runId}
+        </foreach>
+    </select>
+
+    <update id="markRunning">
+        update ai_chat_run
+           set status = 'RUNNING', worker_id = #{workerId}, started_time = #{now},
+               heartbeat_time = #{now}, update_time = #{now}
+         where run_id = #{runId} and status = 'QUEUED' and cancel_requested = '0'
+    </update>
+
+    <update id="markFinalizing">
+        update ai_chat_run
+           set status = 'FINALIZING', heartbeat_time = #{now},
+               update_time = #{now}
+         where run_id = #{runId} and worker_id = #{workerId}
+           and status = 'RUNNING' and cancel_requested = '0'
+    </update>
+
+    <update id="updateHeartbeat">
+        update ai_chat_run
+           set heartbeat_time = #{now}, update_time = #{now}
+         where run_id = #{runId} and worker_id = #{workerId}
+           and status in ('QUEUED', 'RUNNING', 'FINALIZING')
+    </update>
+
+    <update id="requestCancel">
+        update ai_chat_run
+           set cancel_requested = '1', update_time = current_timestamp
+         where run_id = #{runId} and status in ('QUEUED', 'RUNNING')
+    </update>
+
+    <update id="completeRun">
+        update ai_chat_run
+           set status = #{status}, active_key = null, error_code = #{errorCode},
+               error_message = #{errorMessage}, request_message_id = #{requestMessageId},
+               response_message_id = #{responseMessageId}, finished_time = #{now},
+               heartbeat_time = #{now}, update_time = #{now}
+         where run_id = #{runId} and status in ('QUEUED', 'RUNNING', 'FINALIZING')
+    </update>
+
+    <update id="updateLastEventSeq">
+        update ai_chat_run
+           set last_event_seq = greatest(last_event_seq, #{seq}), update_time = current_timestamp
+         where run_id = #{runId}
+    </update>
+
+    <update id="advanceSnapshotSeq">
+        update ai_chat_run
+           set last_event_seq = greatest(last_event_seq, #{lastEventSeq}),
+               snapshot_seq = greatest(snapshot_seq, #{snapshotSeq}),
+               update_time = current_timestamp
+         where run_id = #{runId}
+    </update>
+
+    <update id="bindRequestMessage">
+        update ai_chat_run
+           set request_message_id = #{requestMessageId}, update_time = current_timestamp
+         where run_id = #{runId} and request_message_id is null
+    </update>
+
+    <update id="unbindMessageIdsBySession">
+        update ai_chat_run
+           set request_message_id = null, response_message_id = null, update_time = current_timestamp
+         where session_id = #{sessionId}
+           and (request_message_id is not null or response_message_id is not null)
+    </update>
+
+    <!-- 物理删除某会话的全部运行记录(删除会话时调用，保证首页运行统计不含已删除会话)。 -->
+    <delete id="deleteBySessionId">
+        delete from ai_chat_run where session_id = #{sessionId}
+    </delete>
+
+    <!--
+      heartbeat_time / create_time / finished_time 都由应用写入 Java Date,
+      与 staleBefore 同一时钟。coalesce 让没心跳的 QUEUED 也能被回收。
+    -->
+    <update id="markStaleInterrupted">
+        update ai_chat_run
+           set status = 'INTERRUPTED', active_key = null, error_code = 'WORKER_STALE',
+               error_message = '执行节点心跳超时', finished_time = #{now}, update_time = #{now}
+         where status in ('QUEUED', 'RUNNING', 'FINALIZING')
+           and coalesce(heartbeat_time, create_time) &lt; #{staleBefore}
+    </update>
+
+    <select id="selectStaleActive" resultMap="AiChatRunResult">
+        select <include refid="columns"/> from ai_chat_run
+         where status in ('QUEUED', 'RUNNING', 'FINALIZING')
+           and coalesce(heartbeat_time, create_time) &lt; #{staleBefore}
+         order by create_time asc
+    </select>
+
+    <update id="markWorkerInterrupted">
+        update ai_chat_run
+           set status = 'INTERRUPTED', active_key = null, error_code = 'WORKER_SHUTDOWN',
+               error_message = '执行节点已停止', finished_time = #{now}, update_time = #{now}
+         where worker_id = #{workerId} and status in ('QUEUED', 'RUNNING', 'FINALIZING')
+    </update>
+
+    <select id="selectActiveByWorker" resultMap="AiChatRunResult">
+        select <include refid="columns"/> from ai_chat_run
+         where worker_id = #{workerId} and status in ('QUEUED', 'RUNNING', 'FINALIZING')
+    </select>
+
+    <!-- 测试专用:H2(MySQL mode) -->
+    <update id="createTableForTest">
+        create table if not exists ai_chat_run (
+          run_id varchar(64) not null,
+          session_id varchar(64) not null,
+          agent_id bigint not null,
+          selected_model_id bigint,
+          selected_model_code varchar(100),
+          effective_skill_ids clob,
+          user_id bigint not null,
+          client_request_id varchar(64) not null,
+          active_key varchar(64),
+          status varchar(20) not null,
+          input_text clob not null,
+          attachments clob,
+          request_message_id bigint,
+          response_message_id bigint,
+          last_event_seq bigint default 0 not null,
+          snapshot_seq bigint default 0 not null,
+          cancel_requested varchar(1) default '0' not null,
+          worker_id varchar(100),
+          error_code varchar(64),
+          error_message clob,
+          started_time timestamp,
+          heartbeat_time timestamp,
+          finished_time timestamp,
+          create_time timestamp not null,
+          update_time timestamp not null,
+          primary key (run_id),
+          unique (active_key),
+          unique (user_id, client_request_id)
+        )
+    </update>
+
+    <update id="dropTableForTest">
+        drop table if exists ai_chat_run
+    </update>
+
+    <!--
+      任务健康度聚合(首页)。
+      成功率 = SUCCEEDED / (SUCCEEDED + FAILED + INTERRUPTED)
+      排除 CANCELLED(用户主动取消)与 QUEUED/RUNNING/FINALIZING(未到终态)。
+      状态分布按 status 全量返回,前端可绘制环形图。
+    -->
+    <select id="selectRunHealth" resultType="map">
+        select
+            sum(case when status = 'SUCCEEDED'    then 1 else 0 end) as succeeded,
+            sum(case when status = 'FAILED'       then 1 else 0 end) as failed,
+            sum(case when status = 'INTERRUPTED'  then 1 else 0 end) as interrupted,
+            sum(case when status = 'CANCELLED'    then 1 else 0 end) as cancelled,
+            sum(case when status = 'QUEUED'       then 1 else 0 end) as queued,
+            sum(case when status = 'RUNNING'      then 1 else 0 end) as running,
+            sum(case when status = 'FINALIZING'   then 1 else 0 end) as finalizing,
+            count(1) as total
+        from ai_chat_run
+        where create_time &gt;= #{since}
+    </select>
+
+    <!--
+      平均运行耗时(仅终态 SUCCEEDED/FAILED,毫秒)。
+      finished_time - started_time 可能为 NULL(没启起来) — 用 ifnull 兜 0。
+    -->
+    <select id="selectRunDuration" resultType="map">
+        select
+            ifnull(avg(timestampdiff(second, started_time, finished_time) * 1000), 0) as avgMs,
+            count(1) as sampleCount
+        from ai_chat_run
+        where create_time &gt;= #{since}
+          and finished_time is not null
+          and started_time is not null
+          and status in ('SUCCEEDED', 'FAILED')
+    </select>
+
+</mapper>

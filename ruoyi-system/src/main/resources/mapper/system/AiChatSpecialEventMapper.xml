@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiChatSpecialEventMapper">
+    <resultMap id="AiChatSpecialEventResult" type="com.ruoyi.system.domain.AiChatSpecialEvent">
+        <id property="id" column="id"/>
+        <result property="sessionId" column="session_id"/>
+        <result property="runId" column="run_id"/>
+        <result property="messageId" column="message_id"/>
+        <result property="agentId" column="agent_id"/>
+        <result property="ownerAgentCode" column="owner_agent_code"/>
+        <result property="name" column="name"/>
+        <result property="schemaVersion" column="schema_version"/>
+        <result property="eventId" column="event_id"/>
+        <result property="payload" column="payload"/>
+        <result property="version" column="version"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="upsert" parameterType="com.ruoyi.system.domain.AiChatSpecialEvent">
+        insert into ai_chat_special_event
+        (session_id, run_id, message_id, agent_id, owner_agent_code, name, schema_version, event_id, payload, version, create_time)
+        values
+        (#{sessionId}, #{runId}, #{messageId}, #{agentId}, #{ownerAgentCode}, #{name}, #{schemaVersion},
+         #{eventId}, #{payload}, 0, current_timestamp)
+        on duplicate key update
+          payload = values(payload),
+          schema_version = values(schema_version),
+          message_id = coalesce(values(message_id), message_id),
+          run_id = coalesce(values(run_id), run_id),
+          agent_id = coalesce(values(agent_id), agent_id),
+          owner_agent_code = coalesce(values(owner_agent_code), owner_agent_code),
+          version = version + 1
+    </insert>
+
+    <insert id="insert" parameterType="com.ruoyi.system.domain.AiChatSpecialEvent">
+        insert into ai_chat_special_event
+        (session_id, run_id, message_id, agent_id, owner_agent_code, name, schema_version, event_id, payload, version, create_time)
+        values
+        (#{sessionId}, #{runId}, #{messageId}, #{agentId}, #{ownerAgentCode}, #{name}, #{schemaVersion},
+         #{eventId}, #{payload}, 0, current_timestamp)
+    </insert>
+
+    <update id="updateIfVersion">
+        update ai_chat_special_event
+           set payload = #{payload},
+               schema_version = #{schemaVersion},
+               run_id = coalesce(#{runId}, run_id),
+               agent_id = coalesce(#{agentId}, agent_id),
+               owner_agent_code = coalesce(#{ownerAgentCode}, owner_agent_code),
+               version = version + 1
+         where id = #{id} and version = #{version}
+    </update>
+
+    <select id="selectBySessionEvent" resultMap="AiChatSpecialEventResult">
+        select * from ai_chat_special_event
+         where session_id = #{sessionId} and event_id = #{eventId}
+    </select>
+
+    <select id="selectBySessionId" resultMap="AiChatSpecialEventResult">
+        select * from ai_chat_special_event where session_id = #{sessionId} order by id asc
+    </select>
+
+    <delete id="deleteBySessionId">
+        delete from ai_chat_special_event where session_id = #{sessionId}
+    </delete>
+
+    <select id="selectSummariesBySessionId" resultType="com.ruoyi.system.domain.AiChatSpecialEventSummary">
+        select message_id as messageId, name, payload
+          from ai_chat_special_event
+         where session_id = #{sessionId}
+    </select>
+
+    <select id="selectPayloads" resultMap="AiChatSpecialEventResult">
+        select * from ai_chat_special_event
+         where session_id = #{sessionId}
+           and message_id = #{messageId}
+           and name = #{name}
+         order by id asc
+    </select>
+
+    <update id="createTableForTest">
+        create table if not exists ai_chat_special_event (
+          id bigint auto_increment primary key,
+          session_id varchar(64) not null,
+          run_id varchar(64),
+          message_id bigint,
+          agent_id bigint,
+          owner_agent_code varchar(64),
+          name varchar(64) not null,
+          schema_version int not null default 1,
+          event_id varchar(160) not null,
+          payload clob,
+          version int not null default 0,
+          create_time timestamp not null,
+          unique(session_id, event_id)
+        )
+    </update>
+</mapper>

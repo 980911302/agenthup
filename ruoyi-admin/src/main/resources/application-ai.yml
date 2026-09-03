@@ -1,0 +1,410 @@
+# ============================================================
+# AI 相关配置(由 application.yml 通过 spring.config.import 引入)
+#
+# 这里集中两类:
+#   1. ruoyi.ai.tool.*      —— 工具沙箱、Shell、MCP(绑定 AiToolProperties)
+#   2. ai.chat.*            —— 会话上下文、工具预算、运行线程池、WebSocket
+#
+# 说明:模型构造走 DB 渠道(ai_channel 表)由 ChatModelFactory 动态完成,
+# 不配置 spring.ai.* 自动配置相关属性;OpenAI 客户端用纯库依赖(spring-ai-openai),
+# 不使用带自动配置的 starter,因此这里也没有 spring.ai.model.* 开关。
+# ============================================================
+
+# AI 工具配置(绑定 com.ruoyi.system.tool.AiToolProperties,prefix = ruoyi.ai.tool)
+ruoyi:
+  ai:
+    tool:
+      # AI 工作区沙箱根目录；多实例生产环境必须使用共享持久卷。
+      # 必须显式配置,不要留空:留空会回退到 {ruoyi.profile}/ai-workspace,
+      # 而 ruoyi.profile 被 /profile/** 静态映射且 GET 免鉴权(SecurityConfig),
+      # AI 写出的文件会变成匿名可下载。
+      workspace-root: ./agent-java/ai/workspace
+      # 是否按会话隔离工作区(true: {root}/{sessionId};false: 全局共用,兼容旧行为)
+      workspace-per-session: true
+      # 技能附件根目录:技能带的参考文件存这里,按 {root}/{skillId}/ 分目录。
+      # 与 workspace-root 分开是刻意的:技能附件是全局共享的只读资产,工作区按会话隔离且模型可写,
+      # 混在一起等于让模型改得动公共技能的文档。loadSkill 时拷贝副本进会话沙箱,模型读的是副本。
+      # 同样不要留空(留空回退 {ruoyi.profile}/ai-skills,那是 /profile/** 匿名可下载的目录);
+      # 多实例生产环境必须指向共享持久卷。
+      skill-root: ./agent-java/ai/skills
+      # read/write/edit/bash/grep/find/ls 的默认工作目录;空=进程 user.dir。绝对路径不限制。
+      cwd:
+      # 是否允许 Shell 工具执行本机命令
+      shell-enabled: true
+      # Shell 命令超时毫秒
+      shell-timeout-ms: 30000
+      # MCP 单次请求超时毫秒(SDK 默认仅 20s,工具真在干活时容易踩线)
+      mcp-request-timeout-ms: 600000
+      # MCP 初始化(握手 + tools/list)超时毫秒
+      mcp-init-timeout-ms: 30000
+      # MCP 连接保活间隔秒,0 关闭。
+      # 必须小于链路上最短的空闲超时(nginx 默认 60s、多数云网关 60~300s),
+      # 否则连接会被悄悄掐掉,下次调用工具白等一个 requestTimeout 才报错。
+      mcp-keepalive-seconds: 30
+      # 保活 ping 失败时是否自动重连
+      mcp-auto-reconnect: true
+      # 内置执行型工具(bash/read/write/edit/grep/find/ls/captureScreenshot)的来源:
+      #   local(默认)= 主应用注册本地这三个类;
+      #   mcp       = 主应用不注册本地这批,全部由远端 tool-mcp-server(MCP)同步的工具顶上。
+      # 远端工具名与内置完全一致,tool_code 唯一键 + last-write-wins 会让同名字互相覆盖,
+      # 所以必须二选一。切到 mcp 时,把 mcp-request-timeout-ms 提到 ≥ 600000(bash 上限),
+      # 否则 >60s 的长命令会被 client 掐断。详见 tool-mcp-server/README.md。
+      exec-tools-mode: mcp
+      # 远端执行工具 MCP server 的 HTTP 起源(mode=mcp 时工作区抽屉经它代理读写,
+      # 与工具调用按同一 workspaceKey 隔离)。留空 = 抽屉仍读主应用本地工作区。
+      remote-workspace-base-url: http://192.168.0.108:8090
+      # 排查 KV-cache 命中异常用:打印 systemPrompt 与每个工具定义的 hash。
+      # 开两个新会话对比日志,第一个对不上的就是让前缀分叉的那一项。
+      # 不用日志级别控制 —— logback.xml 写死了 com.ruoyi=info,会覆盖 yml 的 debug。
+      log-prefix-fingerprint: true
+
+    # ------------------------------------------------------------
+    # S3 兼容对象存储(绑定 com.ruoyi.adapter.storage.ObjectStorageProperties)
+    #
+    # 服务于 desktop「文件」菜单的个人文件空间。这里只放「怎么连存储」的参数,
+    # 配额之类的业务规则在下面的 ruoyi.ai.user-file。
+    #
+    # ⚠️ 与会话工作区(ruoyi.ai.tool.workspace-root)是两套东西,不要混:
+    #    工作区必须是本地 POSIX 目录,因为 bash / grep / edit 工具在上面跑真实进程,
+    #    对象存储给不了这个语义。个人文件只有在用户主动「投递到会话」时才拷一份过去。
+    #
+    # 四类服务的差异只在 endpoint / region / path-style-access:
+    #   MinIO         endpoint: http://127.0.0.1:9000              region: us-east-1       path-style-access: true
+    #   阿里云 OSS     endpoint: https://oss-cn-hangzhou.aliyuncs.com region: oss-cn-hangzhou path-style-access: false
+    #   腾讯云 COS     endpoint: https://cos.ap-guangzhou.myqcloud.com region: ap-guangzhou   path-style-access: false
+    #   Cloudflare R2 endpoint: https://{account}.r2.cloudflarestorage.com region: auto     path-style-access: true
+    #
+    # path-style 设错的症状是 404 或 SignatureDoesNotMatch(不是连不上),排查时容易被误导。
+    # ------------------------------------------------------------
+    storage:
+      # 总开关。false 时不构造 S3 客户端,个人文件接口返回「对象存储未配置」而不是启动失败
+      enabled: ${AI_STORAGE_ENABLED:false}
+      endpoint: ${AI_STORAGE_ENDPOINT:}
+      region: ${AI_STORAGE_REGION:us-east-1}
+      access-key: ${AI_STORAGE_ACCESS_KEY:}
+      secret-key: ${AI_STORAGE_SECRET_KEY:}
+      bucket: ${AI_STORAGE_BUCKET:agenthub}
+      # MinIO / R2 必须 true;OSS / COS 用虚拟主机风格,设 false
+      path-style-access: ${AI_STORAGE_PATH_STYLE:true}
+      # 对象键统一前缀,便于同一个桶给多个环境共用。空=不加前缀
+      key-prefix: ${AI_STORAGE_KEY_PREFIX:}
+
+    # ------------------------------------------------------------
+    # 个人文件业务规则(绑定 com.ruoyi.system.ai.userfile.AiUserFileProperties)
+    # 与上面的连接参数分开:换存储厂商不该顺带改配额。
+    # ------------------------------------------------------------
+    user-file:
+      # 单用户配额,默认 1GB。desktop 配额条显示的分母就是它
+      user-quota-bytes: 1073741824
+      # 单文件上限,默认 50MB。必须 <= spring.servlet.multipart.max-file-size(当前 50MB),
+      # 否则超限请求会被 Tomcat 在进 controller 前拒掉,用户看到 500 而不是友好提示
+      max-file-bytes: 52428800
+      # 单用户文件数上限
+      max-files-per-user: 2000
+      # 预签名 URL 有效期秒数。够浏览器加载完即可 —— 给长了等于把私有对象变成可转发的公开链接
+      presign-ttl-seconds: 300
+
+# AI 会话上下文文件存储
+ai:
+  chat:
+    # 上下文/外置大字段根目录；多实例生产环境必须使用共享持久卷
+    context-path: ./agent-java/ai/sessions
+    # 大字段内联上限(字符)。tool_result / THINKING 超过此长度只在表内留预览,
+    # 全文落到 context-path 下,表里记 tool_result_path。见 docs/ai/ai-agent-graph.md §4.9
+    inline-limit: 2048
+    # 工具调用预算。定位:防止模型陷入工具循环把上下文撑爆。
+    # 实测故障:25 轮调用、每轮 5 万字符,prompt 16 秒内从 3,579 涨到 333,917(窗口 128,000)。
+    tool:
+      # 单个工具返回给模型的字符上限,中间截断(保留首尾)。与 Claude Code 的 Bash 工具对齐。
+      # 注意这与 inline-limit(存库截断)是两回事,前者管成本,后者管存储。
+      max-result-chars: 30000
+      # 单个工具返回给模型的行数上限,中间截断(保留首尾)。与 max-result-chars 是两个独立维度:
+      # 前者管上下文成本,这个管信息密度 —— ls -R / find / 大 CSV 这类输出行数极多但字符数未必超。
+      max-result-lines: 2000
+      # 软上限:模型往返次数(一次 LLM 响应 + 其触发的并行工具算 1 轮,不是每次工具调用)。
+      # 达到后不再执行工具,返回提示让模型基于已有信息收尾,运行仍正常结束。
+      # 语义已从「工具调用次数」改为「往返次数」,同样 50 比改前宽松得多。
+      max-rounds: 50
+      # 硬上限:模型无视提示继续硬刷时中断运行,兜底用。与软上限的间隔即模型的收尾余地
+      hard-max-rounds: 65
+      # 单次运行所有工具返回的累计字符上限。三层里最关键的一层 ——
+      # 只限单次的话,25 轮 × 30,000 照样能堆到 20 万 token
+      max-total-chars: 200000
+      # prompt_tokens 占输入预算(contextWindow−maxOutput)的软/硬比例。
+      # 轮次与字符都是间接指标;真正会撑爆窗口的是 prompt 本身。
+      # 见 docs/ai/ai-context-compactor-design.md §3.1
+      soft-token-ratio: 0.75
+      hard-token-ratio: 0.90
+      # 软上限行为: END=把说明当 tool result 让模型收尾; ERROR=直接抛异常中断运行
+      # 见 docs/ai/ai-borrowed-capabilities.md §1.1 ExitBehavior
+      exit-behavior: END
+      # 会话级累计(跨多轮 run)。0=不限。防「每轮刚好不超、十轮烧光」
+      max-session-rounds: 200
+      max-session-tool-calls: 500
+      max-session-total-chars: 2000000
+      # 危险操作人工确认总开关。false=不再弹确认框,危险工具直接执行。
+      # 关掉的是「执行前拦一道」,不是审计 —— 工具调用照常记 ai_chat_message 与时间线。
+      # 逐个工具的开关仍是 ai_tool.require_confirm,此处为全局前置条件。
+      confirm-enabled: false
+      # 危险工具(bash)等人确认的超时秒数,超时视为拒绝
+      confirm-timeout-seconds: 120
+      channel:
+        # 渠道工具总开关。注意:客户端任意 JS 可声明工具向 agent 喂文本,是注入面。
+        # 开启的前提是「读网页的 Agent 不挂 bash / 不挂文件写」,见 docs 与插件计划第五节。
+        enabled: true
+        # 灰度白名单:非空时只有名单内的 userId 生效(enabled 仍是前置条件)。
+        allow-user-ids: []
+        # 等待客户端执行的超时秒数。与 confirm-timeout-seconds 对齐。
+        # 外层超时不恒定:本轮只有 1 个 tool_call → tool-batch-timeout-seconds(600s);
+        # 本轮有多个 tool_call → tool-execution-timeout-ms(30s),此时本值会被外层截断。
+        timeout-seconds: 120
+        # 发现「本实例上已经没有客户端订阅这一轮」后还愿意多等多久，超过即判失败。
+        # 侧边栏一关，浏览器工具的执行体(插件页面)就没了，等满 timeout-seconds 只是把
+        # 这一轮拖死；但也不能一断开就判死——关掉再打开、重连、序号缺口恢复都会短暂离线，
+        # 客户端重新订阅时服务端会把挂起的请求补发一遍(ChannelToolBroker#redeliver)。
+        # 负数关闭该判定，退回只看 timeout-seconds 的旧行为。
+        disconnect-grace-seconds: 30
+        # 单会话最多声明多少个渠道工具。浏览器插件约 24 个，留余量。
+        max-tools-per-session: 32
+        # 全局同时挂起的渠道调用上限(保护 parallelToolTaskExecutor)
+        max-concurrent-calls: 32
+    # 并行工具执行(Run 链路,同轮多个 tool_calls 并发跑;默认关)
+    run:
+      # 总开关。true=模型一次返回多个工具调用时并发执行(含子 Agent 工具)
+      parallel-tools: true
+      # 最大并发工具数(Semaphore 限流)
+      max-parallel-tools: 5
+      # 单个工具执行超时(毫秒),超时该工具返回错误响应,不阻塞整轮。
+      # 含同轮只有 1 个 tool_call 的路径(不再内联绕过超时)。
+      tool-execution-timeout-ms: 30000
+      # 交互对话:同一用户每窗口允许创建的 Run 数(REST 与 WebSocket 共用)。<=0 关闭
+      create-rate-limit: 20
+      # 定时任务独立配额,不与对话抢窗口
+      job-create-rate-limit: 30
+      create-rate-window-seconds: 60
+      # 并行工具专用线程池(与 chat-run 池隔离,防止父子任务互相占槽死锁)
+      parallel-core-pool-size: 4
+      parallel-max-pool-size: 16
+      parallel-queue-capacity: 64
+      # 主链路 LLM 流空闲超时秒数:单段流式输出超过该时长无任何 chunk 判定上游僵死
+      # (半开连接),切断本轮并给用户可读错误。只罩流式段,工具执行的静默不计时。
+      # 须大于最长串行工具静默期(shell 30s / MCP 60s / 子 agent 更长)。<=0 关闭
+      llm-idle-timeout-seconds: 300
+      # 串行批次超时,也是并行模式下「同轮只有 1 个 tool_call」的超时。
+      # 须大于子 agent idle 300s。同轮多个 tool_call 仍用 tool-execution-timeout-ms。<=0 关闭。
+      tool-batch-timeout-seconds: 600
+      # Agent 运行使用独立有界线程池，避免占满通用异步任务池
+      core-pool-size: 4
+      max-pool-size: 16
+      queue-capacity: 200
+      # worker 心跳超过此时间仍未更新则转 INTERRUPTED，释放会话活动锁
+      stale-timeout-ms: 120000
+      # Run 总时长兜底秒数:超过即强制 INTERRUPTED,收敛「线程活着但永久阻塞」的 Run
+      # (心跳/stale 只覆盖进程死亡,进程活着时心跳照常更新、stale 永不触发)。
+      # 须大于 llm-idle + tool-batch + compact 各超时的典型组合。<=0 关闭
+      max-duration-seconds: 1800
+    # ai_model.context_window 未配置时的兜底值(保守取值,避免压缩阈值算错)
+    default-context-window: 32768
+    # 历史加载(timeline)轻量化:TOOL 消息的入参/结果只返回预览,
+    # 完整内容按需通过 GET /ai/chat/session/{sessionId}/message/{id}/tool-result 拉取。
+    # 长会话消息条数多,全量返回是进入会话慢的主要来源。
+    timeline:
+      tool-result-preview: 300
+      tool-args-preview: 200
+    # 轮内上下文清理(自建工具循环后插入)。见 docs/ai/ai-context-compactor-phase2.md
+    context:
+      # 工具往返是否进 LLM 上下文(跨轮保留)。
+      # true  = assistant(tool_calls)+tool 作为真实消息一直带着,对标 OpenCode/Claude Code。
+      #         模型能回看几轮前读过的文件,代价是上下文增长快得多,依赖下面 clean/compact 两层兜底。
+      # false = 维持改造前行为(工具原文只活在当轮,跨轮只剩摘要),用于灰度与回滚。
+      # 注意:该开关只影响新写入的行。已落库的历史消息 visible_to_llm 写入即定,
+      #      打开开关不会让老会话的工具往返突然回到上下文里。
+      tool-messages-in-context: true
+      clean:
+        # 估算超过 预算×此比例 才开始清
+        trigger-ratio: 0.6
+        # 触发清理的绝对上限(token),与 trigger-ratio 算出的线取小。0=只按比例。
+        # 纯比例制在长窗口模型上等于不设防:100 万窗口 ×0.6 = 59.5 万,
+        # 而实测一次浏览器自动化任务的上下文峰值才 9.6 万 —— 清理一次都不触发,
+        # 51 轮工具往返原样堆着被完整重发 51 遍(累计 prompt 339 万)。
+        # 窗口是「能装多少」不是「该装多少」:计费按每次调用的 prompt 走,与窗口无关。
+        trigger-max-tokens: 60000
+        # 保留最近几对工具往返
+        keep: 3
+        # 清不到 当前上下文×此比例 就不清(腾出的太少,不值得打破缓存前缀)。
+        # 基准是当前上下文而非预算:这道闸门问「这次清理值不值」,与窗口多大无关。
+        # 挂在预算上时 100 万窗口的门槛(99,180)比整个上下文(96,387)还高,等于焊死。
+        clear-at-least-ratio: 0.1
+        # true=同时清工具入参(本项目 writeFile 入参是大头)
+        clear-tool-inputs: true
+        # 永不清理的工具名,逗号分隔。
+        # loadSkill 返回的是技能操作指令正文(不是可再取的数据),清掉后模型不知道该怎么做事,
+        # 却仍以为自己加载过技能 —— 对标 OpenCode「skill 类工具永不 prune」。
+        # 追加时保留 loadSkill,例如:loadSkill,yourTool
+        exclude-tools: loadSkill
+      # 历史压缩(跨轮,要调一次 LLM)。与上面的 clean 是两层兜底:
+      # clean 只削工具往返、不花钱、每次工具结果后跑;compact 削对话正文本身、花钱、每轮开始前跑。
+      compact:
+        enabled: true
+        # 保留最近几轮不压缩(以用户消息计一轮)。
+        # 太小会把模型刚做过的事也压掉,它会开始重复劳动;太大则压不出空间。
+        keep-recent-turns: 4
+        # 压缩调用超时秒数:压缩发生在每轮首 token 之前,挂死会拖死整轮;
+        # 压缩是优化不是必需,超时安静跳过本轮。<=0 关闭
+        timeout-seconds: 120
+    websocket:
+      # 实时事件 WebSocket 允许的握手 Origin。不配置时 Spring 只接受同源握手：
+      # 前端 80 端口经代理转发到 8080 会被 403，页面表现为一直连接不上。
+      # 握手身份由一次性票据保证；生产可收敛为具体域名，如 https://your-domain.com。
+      # 浏览器插件的 origin 是 chrome-extension://<id>，收紧时需一并放行。
+      allowed-origin-patterns: "*"
+  # 跨会话长期记忆(记忆系统)。见 docs/superpowers/specs/2026-08-29-ai-memory-design.md
+  memory:
+    enabled: true
+    # 向量模型:留空 = 跟随知识库的平台全局配置(sys_config 的 kb.default.embeddingModel),
+    # 这是推荐做法 —— 记忆与知识库共用一套向量供应,不必两处维护。
+    # 填值 = 显式覆盖,仅在记忆想用比知识库更便宜/更小的模型时才需要。
+    # 两处都没有 → 读侧不注入、写侧不做向量去重(只剩 hash 去重),对话照常 —— 记忆是旁路。
+    embedding-model-code: ""
+    # 读侧:每轮自动检索注入
+    retrieve:
+      top-k: 5
+      # 阈值优先于 top-k,宁缺毋滥
+      min-score: 0.75
+      # 低于此长度不检索("嗯""继续")
+      min-query-length: 8
+      # 身份短问句(如“我是谁”“我叫什么”)虽会绕过长度门槛，但语义通常比完整问句弱，
+      # 使用独立的较低阈值，避免已有姓名记忆仍被通用阈值拦截。
+      identity-min-score: 0.4
+      # 注入硬顶,计入 ContextBudget
+      max-inject-tokens: 500
+      # 单轮检索硬截止秒数,超时按「没检索到」处理。0=关闭(退回内联同步调用)。
+      # 检索跑在本轮 user 消息落库之前、同步占着 chat-run 线程(core 只有 4),
+      # 向量渠道半死不活时几轮就能把整个实例堵死 —— 记忆是增强不是必需,宁可不注入。
+      # try/catch 挡不住这种情况:它只接得住抛出来的异常,接不住迟迟不返回的调用。
+      timeout-seconds: 5
+    # 写侧:自动提炼
+    extract:
+      # 压缩搭车(主力),压力大时可关,退化为纯兜底扫描
+      piggyback-compaction: true
+      # 空闲多久触发兜底提炼
+      idle-sweep-minutes: 30
+      # 扫描周期
+      sweep-interval-seconds: 300
+      # 空闲扫描总开关(测试/运维可关)
+      idle-sweep-enabled: true
+      # 单次提炼产出上限
+      max-facts-per-run: 10
+      # 高于此相似度视为同一事实(去重)
+      dedup-threshold: 0.92
+      # 提炼失败退避:失败不推进位点,若无退避则稳定失败的会话会每轮重试到永远,
+      # 并靠 order by update_time asc 永久占据候选名额,把新会话挤出去(队头阻塞)。
+      # 第 n 次失败退避 retry-backoff-minutes * 2^(n-1),封顶 max-backoff-minutes;
+      # 连续失败达 max-failures 后不再进候选。成功即清零。
+      max-failures: 5
+      retry-backoff-minutes: 10
+      max-backoff-minutes: 240
+    # 容量(分层各算)
+    max-per-user-scope: 300
+    max-per-agent-scope: 300
+  # ------------------------------------------------------------
+  # 嵌入调用(EmbeddingModelFactory)。知识库与长期记忆共用一套向量供应,
+  # 所以这段既不挂在 kb 下也不挂在 memory 下。
+  #
+  # ⚠️ 这三个键是防线不是调优项:Spring AI 三参构造的 OpenAiEmbeddingModel 默认挂
+  #    RetryUtils.DEFAULT_RETRY_TEMPLATE(10 次 + 指数退避 2s×5 封顶 180s),
+  #    且 RestClient 默认无读超时。向量渠道一挂,单次 embed 能阻塞 ~19 分钟,
+  #    而 embed 就跑在对话主链路上(每轮记忆检索),几轮就把 chat-run 线程池占光。
+  # ------------------------------------------------------------
+  embedding:
+    connect-timeout-seconds: 5
+    # 基准是知识库摄入一批 16 个分块(KbConstants.EMBED_BATCH_SIZE),
+    # 本地 CPU 跑 Ollama 也够;记忆检索那种单条短查询用不到零头。
+    read-timeout-seconds: 60
+    # 单次 embed 的总尝试次数(含首次),固定退避 500ms。<=1 即不重试。
+    max-attempts: 2
+  # 知识库摄入/IR 存储
+  kb:
+    # IR JSON 落盘根目录(多实例需共享卷)
+    ir-path: ./agent-java/ai/kb-ir
+    ingest:
+      core-pool-size: 2
+      max-pool-size: 8
+      queue-capacity: 100
+    # 知识图谱(Neo4j)。默认关闭:向量检索不受影响;启用前先 docker 起实例并执行 sql/kb_graph.sql
+    neo4j:
+      enabled: true
+      uri: bolt://192.168.0.102:7687
+      username: ${NEO4J_USERNAME}
+      password: ${NEO4J_PASSWORD}
+      database: neo4j
+    # 检索：Basic/Local/Hybrid/Global/DRIFT + 灰度与观测（KB-GR-13）
+    search:
+      expand-parent: true
+      expand-adjacent: 1
+      expand-max-tokens: 2000
+      rrf-k: 60
+      local-hops: 1
+      # 灰度：默认 basic+local+hybrid；global/drift/auto 需显式加入
+      rollout:
+        enabled-modes: basic,local,hybrid
+        default-mode: basic
+        admin-debug-trace: true
+        strip-debug-trace: true
+        max-concurrent: 32
+        per-mode-timeout-ms: 60000
+      global:
+        min-score: 0.15
+        max-selected: 12
+        max-visited: 80
+        use-report-vector: true
+        include-source-chunks: true
+        max-source-chunks-per-report: 3
+        fallback-hybrid: true
+      # DRIFT（KB-GR-12）：硬预算内必然终止
+      drift:
+        max-depth: 2
+        max-followups-per-level: 3
+        max-retrievals: 12
+        max-tokens: 8000
+        timeout-ms: 30000
+        dedupe-threshold: 0.75
+        include-community: true
+        seed-mode: hybrid
+    graph:
+      # 抽取独立线程池,勿与 ingest 共用(长任务会饿死上传)
+      core-pool-size: 2
+      max-pool-size: 6
+      queue-capacity: 50
+      extract-concurrency: 4
+      # 合并并发 ≈ 抽取并发 × 2
+      merge-concurrency: 8
+      # Graph TextUnit 切分（与 LEAF embedding 参数解耦；只影响图重建）
+      graph-unit-size: 350
+      graph-unit-max: 500
+      # 抽取合约（KB-GR-06）
+      extract:
+        language: zh
+        domain: ""
+        # p2-zh：中文优先抽取模板（类型清单/章节消歧/补捞），变更指纹使旧缓存失效
+        prompt-version: p2-zh
+        # 首轮抽空且正文够长时，再补捞 1 次（KbEntityExtractor gleaning）
+        max-gleanings: 1
+        max-retries: 2
+        retry-base-ms: 200
+      # 层级社区（KB-GR-08/09）。GDS 未装时可用 fallback-cc 连通分量近似
+      # 社区检测关闭时，社区报告/LLM 增强都不会跑
+      community:
+        enabled: true
+        algorithm: leiden
+        random-seed: 42
+        max-projected-nodes: 200000
+        max-projected-relationships: 1000000
+        debounce-seconds: 30
+        fallback-cc: true
+        # 社区报告（KB-GR-09）：先 extractive，再 LLM 增强（用库的 extract 模型）
+        report-enabled: true
+        report-use-llm: true
+        report-embed: true
+        report-max-input-tokens: 4000
+        report-max-evidence: 12

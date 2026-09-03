@@ -1,0 +1,72 @@
+// AI 模块设计 token —— 所有 AI 页面共用，勿在页面内重复定义。
+// 颜色走 CSS 变量（见 ai-theme.scss），html.dark 下自动切换。
+
+$ai-blue:   #0A84FF;
+$ai-green:  #34C759;
+$ai-orange: #FF9F0A;
+$ai-red:    #FF3B30;
+
+// 文本色：绑定 CSS 变量，亮暗主题自适应
+$ai-text:   var(--ai-text, #1D1D1F);
+$ai-text2:  var(--ai-text2, #6E6E73);
+$ai-gray:   var(--ai-gray, #8E8E93);
+$ai-gray2:  var(--ai-gray2, #AEAEB2);
+$ai-gray3:  var(--ai-gray3, #C7C7CC);
+$ai-gray5:  var(--ai-gray5, #E5E5EA);
+
+$ai-radius:    14px;
+$ai-radius-sm: 10px;
+$ai-font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+$ai-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
+$ai-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+// ---- 字号阶梯 ----
+// 原先散落 15 个字号，其中 11/11.5/12/12.5/13/13.5 挤在 2.5px 区间里，
+// 层级多到失效。收敛成 6 级，每级差一档，扫一眼就能分出主次。
+// 不要再在页面里写裸字号。
+//
+// 比例按中文调过：汉字字形比拉丁字母饱满，同字号下视觉更大，
+// 照搬西文的 1.25 阶梯会显得笨重，这里收到 1.13~1.17。
+$ai-fs-1: 20px;    // 页面主标题 / 欢迎页
+$ai-fs-2: 17px;    // 区块标题
+$ai-fs-3: 15.5px;  // 次级标题
+$ai-fs-4: 14.5px;  // 正文(对话内容、输入框)
+$ai-fs-5: 13px;    // 辅助信息、标签、按钮
+$ai-fs-6: 11.5px;  // 元数据、耗时、计数
+
+// ---- 行高(3 档)----
+$ai-lh-tight: 1.3;   // 标题
+$ai-lh-base:  1.7;   // 正文
+$ai-lh-meta:  1.5;   // 元数据、单行标签
+
+// ---- 阅读宽度 ----
+// 限宽放在「消息列表容器」上并居中，而不是压在每条消息上：
+// 压在消息上时，宽屏下内容全挤在左边一条，右侧大片空白，看着就像放不下东西。
+// 居中之后左右留白对称，视觉是平衡的。
+$ai-content-max: 920px;  // 消息列表容器(含头像与内边距):信息密度优先,宽屏下内容更饱满
+// 用户气泡单独收窄:用户输入通常很短，占满整行反而难扫。
+// 用 em 而非 px，字号一改自动跟着走。
+$ai-measure-user: 34em;
+
+// ---- 文本色(对比度达标，暗色由 CSS 变量切换)----
+// 原 $ai-gray(#8E8E93) 在白底上仅 3.5:1，未达 WCAG AA 的 4.5:1，
+// 却被用在 11px 的辅助文字上。以下两个是替代品，勿再用 $ai-gray 承载正文级信息。
+$ai-text3: var(--ai-text3, #5A5C64);  // 辅助文字
+$ai-text-think: var(--ai-text-think, #3C3E45);  // 思考链正文
+
+// 兼容旧页面内 $blue / $ease 等局部命名（chat / 管理页迁移用）
+$blue:   $ai-blue;
+$green:  $ai-green;
+$orange: $ai-orange;
+$red:    $ai-red;
+$text:   $ai-text;
+$text2:  $ai-text2;
+$gray:   $ai-gray;
+$gray2:  $ai-gray2;
+$gray3:  $ai-gray3;
+$gray5:  $ai-gray5;
+$radius:    $ai-radius;
+$radius-sm: $ai-radius-sm;
+$font: $ai-font;
+$mono: $ai-mono;
+$ease: $ai-ease;

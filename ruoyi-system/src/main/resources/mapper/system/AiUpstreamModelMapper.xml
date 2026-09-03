@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiUpstreamModelMapper">
+    <resultMap type="com.ruoyi.system.domain.AiUpstreamModel" id="AiUpstreamModelResult">
+        <id property="id" column="id"/>
+        <result property="channelId" column="channel_id"/>
+        <result property="upstreamModelId" column="upstream_model_id"/>
+        <result property="displayName" column="display_name"/>
+        <result property="ownedBy" column="owned_by"/>
+        <result property="source" column="source"/>
+        <result property="inputModalities" column="input_modalities"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+    <sql id="columns">id, channel_id, upstream_model_id, display_name, owned_by, source, input_modalities, create_by, create_time, update_by, update_time, remark</sql>
+    <select id="selectList" parameterType="com.ruoyi.system.domain.AiUpstreamModel" resultMap="AiUpstreamModelResult">
+        select <include refid="columns"/> from ai_upstream_model
+        <where>
+            <if test="channelId != null">and channel_id = #{channelId}</if>
+            <if test="upstreamModelId != null and upstreamModelId != ''">and upstream_model_id like concat('%', #{upstreamModelId}, '%')</if>
+            <if test="source != null and source != ''">and source = #{source}</if>
+        </where>
+        order by upstream_model_id asc
+    </select>
+    <select id="selectByChannelAndModelId" resultMap="AiUpstreamModelResult">
+        select <include refid="columns"/> from ai_upstream_model where channel_id = #{channelId} and upstream_model_id = #{upstreamModelId} limit 1
+    </select>
+    <select id="selectByIds" resultMap="AiUpstreamModelResult">
+        select <include refid="columns"/> from ai_upstream_model where id in
+        <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+    <insert id="insertBatch">
+        insert into ai_upstream_model (channel_id, upstream_model_id, display_name, owned_by, source, input_modalities, create_by, create_time, remark) values
+        <foreach item="m" collection="list" separator=",">(#{m.channelId}, #{m.upstreamModelId}, #{m.displayName}, #{m.ownedBy}, #{m.source}, #{m.inputModalities}, #{m.createBy}, #{m.createTime}, #{m.remark})</foreach>
+    </insert>
+    <insert id="insertOne" parameterType="com.ruoyi.system.domain.AiUpstreamModel" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_upstream_model (channel_id, upstream_model_id, display_name, owned_by, source, input_modalities, create_by, create_time, remark)
+        values (#{channelId}, #{upstreamModelId}, #{displayName}, #{ownedBy}, #{source}, #{inputModalities}, #{createBy}, #{createTime}, #{remark})
+    </insert>
+    <update id="updateOne" parameterType="com.ruoyi.system.domain.AiUpstreamModel">
+        update ai_upstream_model <set>
+            <if test="displayName != null">display_name = #{displayName},</if>
+            <if test="ownedBy != null">owned_by = #{ownedBy},</if>
+            <if test="inputModalities != null">input_modalities = #{inputModalities},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = #{updateTime}
+        </set> where id = #{id}
+    </update>
+    <delete id="deleteByIds">delete from ai_upstream_model where id in <foreach item="id" collection="ids" open="(" separator="," close=")">#{id}</foreach></delete>
+    <delete id="deleteByChannelId">delete from ai_upstream_model where channel_id = #{channelId}</delete>
+    <delete id="deleteByChannelIds">delete from ai_upstream_model where channel_id in <foreach item="cid" collection="channelIds" open="(" separator="," close=")">#{cid}</foreach></delete>
+    <select id="selectByChannelIds" resultMap="AiUpstreamModelResult">
+        select <include refid="columns"/> from ai_upstream_model where channel_id in
+        <foreach item="cid" collection="channelIds" open="(" separator="," close=")">#{cid}</foreach>
+    </select>
+    <select id="countByChannelIds" resultType="java.util.Map">
+        select channel_id as channelId, count(1) as cnt from ai_upstream_model where channel_id in
+        <foreach item="cid" collection="channelIds" open="(" separator="," close=")">#{cid}</foreach> group by channel_id
+    </select>
+    <select id="selectChannelIdsByUpstreamModelId" resultType="java.lang.Long">
+        select channel_id from ai_upstream_model where upstream_model_id = #{upstreamModelId}
+    </select>
+    <update id="createTableForTest">
+        create table if not exists ai_upstream_model (
+          id bigint auto_increment, channel_id bigint not null, upstream_model_id varchar(200) not null,
+          display_name varchar(200), owned_by varchar(100), source varchar(1) default '1',
+          input_modalities varchar(64), create_by varchar(64),
+          create_time timestamp, update_by varchar(64), update_time timestamp, remark varchar(500), primary key (id),
+          unique key uk_channel_model (channel_id, upstream_model_id))
+    </update>
+    <update id="dropTableForTest">drop table if exists ai_upstream_model</update>
+</mapper>

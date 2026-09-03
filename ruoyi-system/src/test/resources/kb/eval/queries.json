@@ -1,0 +1,488 @@
+{
+  "version": "1",
+  "description": "星河科技脱敏评测集。relevantAnchors 用 docId + mustContain 判定命中，避免脆弱 chunkId。",
+  "queries": [
+    {
+      "queryId": "q001",
+      "question": "星河科技正式员工年假有多少天？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["15"] }],
+      "goldFacts": ["年假 15 天"],
+      "allowedAnswers": ["15天", "15 天"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q002",
+      "question": "病假全年最多可以请几天？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["30"] }],
+      "goldFacts": ["病假 30 天"],
+      "allowedAnswers": ["30天", "30 天"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q003",
+      "question": "单笔报销超过多少需要直属主管审批？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["2000"] }],
+      "goldFacts": ["超过 2000 元需直属主管审批"],
+      "allowedAnswers": ["2000元", "2000 元"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q004",
+      "question": "试用期多长时间？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["3 个月"] }],
+      "goldFacts": ["试用期 3 个月"],
+      "allowedAnswers": ["3个月", "3 个月"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q005",
+      "question": "试用期员工能否享受年假？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["不享受年假"] }],
+      "goldFacts": ["试用期不享受年假"],
+      "allowedAnswers": ["不能", "不享受"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q006",
+      "question": "未休完年假最多结转几天？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["结转 5 天"] }],
+      "goldFacts": ["最多结转 5 天"],
+      "allowedAnswers": ["5天", "5 天"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q007",
+      "question": "报销一般什么时候打款？",
+      "type": "activity-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["15 日前打款"] }],
+      "goldFacts": ["每月 15 日前打款"],
+      "allowedAnswers": ["15日前", "15 日前"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q008",
+      "question": "如何完成差旅报销审批？",
+      "type": "activity-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["发票"] }],
+      "goldFacts": ["须上传合规发票并按金额审批"],
+      "allowedAnswers": ["上传发票", "主管审批"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q009",
+      "question": "新员工转正后会开通哪些系统账号？",
+      "type": "activity-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["Agent Hub"] }],
+      "goldFacts": ["知识库与 Agent Hub 账号"],
+      "allowedAnswers": ["知识库", "Agent Hub"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q010",
+      "question": "部署 Agent Hub 的第一步是什么？",
+      "type": "activity-local",
+      "relevantAnchors": [{ "docId": "product-guide", "mustContain": ["agent-service"] }],
+      "goldFacts": ["部署后端服务 agent-service"],
+      "allowedAnswers": ["部署后端", "agent-service"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q011",
+      "question": "Agent Hub 使用什么做向量检索？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "product-guide", "mustContain": ["pgvector"] }],
+      "goldFacts": ["PostgreSQL + pgvector"],
+      "allowedAnswers": ["pgvector", "PostgreSQL"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q012",
+      "question": "知识图谱可选组件是什么？",
+      "type": "data-local",
+      "relevantAnchors": [
+        { "docId": "product-guide", "mustContain": ["Neo4j"] },
+        { "docId": "arch-overview", "mustContain": ["Neo4j"] }
+      ],
+      "goldFacts": ["Neo4j"],
+      "allowedAnswers": ["Neo4j"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q013",
+      "question": "标准版最多支持多少个知识库？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "product-guide", "mustContain": ["10 个知识库"] }],
+      "goldFacts": ["标准版 10 个知识库"],
+      "allowedAnswers": ["10个", "10 个"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q014",
+      "question": "企业版相比标准版多了什么能力？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "product-guide", "mustContain": ["图谱抽取"] }],
+      "goldFacts": ["不限知识库并开放图谱抽取"],
+      "allowedAnswers": ["图谱抽取", "不限知识库"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q015",
+      "question": "张伟在哪个部门？",
+      "type": "table",
+      "relevantAnchors": [{ "docId": "employees", "mustContain": ["张伟", "技术研发中心"] }],
+      "goldFacts": ["张伟属于技术研发中心"],
+      "allowedAnswers": ["技术研发中心"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q016",
+      "question": "谁负责 Neo4j 图谱服务？",
+      "type": "table",
+      "relevantAnchors": [{ "docId": "employees", "mustContain": ["赵敏", "Neo4j"] }],
+      "goldFacts": ["赵敏负责 Neo4j 图谱服务"],
+      "allowedAnswers": ["赵敏"],
+      "needsGraph": true,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q017",
+      "question": "李娜的主要职责是什么？",
+      "type": "table",
+      "relevantAnchors": [{ "docId": "employees", "mustContain": ["李娜", "Agent Hub"] }],
+      "goldFacts": ["负责 Agent Hub 需求与路线图"],
+      "allowedAnswers": ["Agent Hub", "需求"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q018",
+      "question": "王强负责什么工作？",
+      "type": "table",
+      "relevantAnchors": [{ "docId": "employees", "mustContain": ["王强", "报销"] }],
+      "goldFacts": ["负责报销审批与预算"],
+      "allowedAnswers": ["报销", "预算"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q019",
+      "question": "标准版价格是多少？",
+      "type": "table",
+      "relevantAnchors": [{ "docId": "products", "mustContain": ["标准版", "99"] }],
+      "goldFacts": ["标准版 99"],
+      "allowedAnswers": ["99"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q020",
+      "question": "企业版售价？",
+      "type": "table",
+      "relevantAnchors": [{ "docId": "products", "mustContain": ["企业版", "999"] }],
+      "goldFacts": ["企业版 999"],
+      "allowedAnswers": ["999"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q021",
+      "question": "agent-service 监听端口是多少？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "service-config", "mustContain": ["8080"] }],
+      "goldFacts": ["端口 8080"],
+      "allowedAnswers": ["8080"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q022",
+      "question": "配置里默认是否启用 Neo4j？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "service-config", "mustContain": ["enabled", "false"] }],
+      "goldFacts": ["neo4j.enabled=false"],
+      "allowedAnswers": ["否", "false", "关闭"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q023",
+      "question": "嵌入模型维度是多少？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "service-config", "mustContain": ["1024"] }],
+      "goldFacts": ["dim 1024"],
+      "allowedAnswers": ["1024"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q024",
+      "question": "向量检索落在什么数据库？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "arch-overview", "mustContain": ["PostgreSQL"] }],
+      "goldFacts": ["PostgreSQL 承载向量检索"],
+      "allowedAnswers": ["PostgreSQL"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q025",
+      "question": "架构上图谱与向量如何分工？",
+      "type": "multi-hop",
+      "relevantAnchors": [
+        { "docId": "arch-overview", "mustContain": ["向量"] },
+        { "docId": "arch-overview", "mustContain": ["Neo4j"] }
+      ],
+      "goldFacts": ["向量用 PostgreSQL，图谱用 Neo4j"],
+      "allowedAnswers": ["PostgreSQL", "Neo4j"],
+      "needsGraph": true,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q026",
+      "question": "负责向量索引的人和负责图谱服务的人分别是谁？",
+      "type": "multi-hop",
+      "relevantAnchors": [
+        { "docId": "employees", "mustContain": ["张伟"] },
+        { "docId": "employees", "mustContain": ["赵敏"] }
+      ],
+      "goldFacts": ["张伟负责向量索引，赵敏负责图谱"],
+      "allowedAnswers": ["张伟", "赵敏"],
+      "needsGraph": true,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q027",
+      "question": "转正后开通 Agent Hub 的员工是否默认启用图谱抽取？",
+      "type": "multi-hop",
+      "relevantAnchors": [
+        { "docId": "hr-handbook", "mustContain": ["Agent Hub"] },
+        { "docId": "service-config", "mustContain": ["graphExtract"] }
+      ],
+      "goldFacts": ["账号会开通但 graphExtract 默认 false"],
+      "allowedAnswers": ["默认关闭", "false"],
+      "needsGraph": true,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q028",
+      "question": "标准版用户能否使用图谱抽取？",
+      "type": "multi-hop",
+      "relevantAnchors": [
+        { "docId": "product-guide", "mustContain": ["标准版"] },
+        { "docId": "product-guide", "mustContain": ["企业版"] }
+      ],
+      "goldFacts": ["图谱抽取是企业版能力"],
+      "allowedAnswers": ["不能", "企业版"],
+      "needsGraph": true,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q029",
+      "question": "财务侧报销审批与系统配置中的图谱开关有什么关系？",
+      "type": "multi-hop",
+      "relevantAnchors": [
+        { "docId": "hr-handbook", "mustContain": ["报销"] },
+        { "docId": "service-config", "mustContain": ["neo4j"] }
+      ],
+      "goldFacts": ["报销流程与图谱开关无直接依赖"],
+      "allowedAnswers": ["无直接关系", "彼此独立"],
+      "needsGraph": true,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q030",
+      "question": "GraphRAG 后续查询模式包含哪些？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "intro-deck", "mustContain": ["Local Search"] }],
+      "goldFacts": ["Local Search 与 Global Search"],
+      "allowedAnswers": ["Local", "Global"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q031",
+      "question": "运维指南里向量基线失败时如何处理？",
+      "type": "activity-local",
+      "relevantAnchors": [{ "docId": "ops-guide", "mustContain": ["vector baseline"] }],
+      "goldFacts": ["keep vector baseline available"],
+      "allowedAnswers": ["vector baseline"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q032",
+      "question": "图重建失败后能否继续叠加写入？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "ops-guide", "mustContain": ["graph rebuild"] }],
+      "goldFacts": ["do not continue write after graph rebuild failure"],
+      "allowedAnswers": ["不能", "must not"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q033",
+      "question": "如何回滚错误的图谱索引？",
+      "type": "activity-local",
+      "relevantAnchors": [{ "docId": "ops-guide", "mustContain": ["rollback"] }],
+      "goldFacts": ["switch active generation for rollback"],
+      "allowedAnswers": ["rollback", "active generation"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q034",
+      "question": "整体来看星河科技知识库体系覆盖哪些主题？",
+      "type": "data-global",
+      "relevantAnchors": [
+        { "docId": "hr-handbook", "mustContain": ["员工手册"] },
+        { "docId": "product-guide", "mustContain": ["Agent Hub"] },
+        { "docId": "arch-overview", "mustContain": ["架构"] }
+      ],
+      "goldFacts": ["人事政策、产品能力、系统架构与运维"],
+      "allowedAnswers": ["人事", "产品", "架构"],
+      "needsGraph": false,
+      "needsGlobalCommunity": true
+    },
+    {
+      "queryId": "q035",
+      "question": "从全库看，图谱相关能力在哪些文档出现？",
+      "type": "data-global",
+      "relevantAnchors": [
+        { "docId": "product-guide", "mustContain": ["图谱"] },
+        { "docId": "arch-overview", "mustContain": ["Neo4j"] },
+        { "docId": "intro-deck", "mustContain": ["GraphRAG"] }
+      ],
+      "goldFacts": ["产品、架构、路线图文档均涉及图谱"],
+      "allowedAnswers": ["产品指南", "架构", "GraphRAG"],
+      "needsGraph": true,
+      "needsGlobalCommunity": true
+    },
+    {
+      "queryId": "q036",
+      "question": "知识库默认配置与人员职责如何支撑图谱落地？",
+      "type": "data-global",
+      "relevantAnchors": [
+        { "docId": "service-config", "mustContain": ["neo4j"] },
+        { "docId": "employees", "mustContain": ["赵敏"] }
+      ],
+      "goldFacts": ["配置默认关闭图谱，由赵敏负责图谱服务"],
+      "allowedAnswers": ["默认关闭", "赵敏"],
+      "needsGraph": true,
+      "needsGlobalCommunity": true
+    },
+    {
+      "queryId": "q037",
+      "question": "星河科技在北京有几个分公司？",
+      "type": "negative",
+      "relevantAnchors": [],
+      "goldFacts": [],
+      "allowedAnswers": ["语料中无答案", "不知道"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q038",
+      "question": "CEO 的手机号码是多少？",
+      "type": "negative",
+      "relevantAnchors": [],
+      "goldFacts": [],
+      "allowedAnswers": ["语料中无答案"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q039",
+      "question": "公司食堂今天的菜单？",
+      "type": "negative",
+      "relevantAnchors": [],
+      "goldFacts": [],
+      "allowedAnswers": ["语料中无答案"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q040",
+      "question": "2024 年营收同比增长率？",
+      "type": "negative",
+      "relevantAnchors": [],
+      "goldFacts": [],
+      "allowedAnswers": ["语料中无答案"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q041",
+      "question": "价目表中标准版和企业版的价格分别是？",
+      "type": "table",
+      "relevantAnchors": [
+        { "docId": "products", "mustContain": ["标准版"] },
+        { "docId": "products", "mustContain": ["企业版"] }
+      ],
+      "goldFacts": ["标准版 99，企业版 999"],
+      "allowedAnswers": ["99", "999"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q042",
+      "question": "嵌入模型名称是什么？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "service-config", "mustContain": ["text-embedding-v3"] }],
+      "goldFacts": ["text-embedding-v3"],
+      "allowedAnswers": ["text-embedding-v3"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q043",
+      "question": "事假需要提前多久提交？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["1 个工作日"] }],
+      "goldFacts": ["提前 1 个工作日"],
+      "allowedAnswers": ["1 个工作日", "一个工作日"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q044",
+      "question": "单笔报销超过一万谁审批？",
+      "type": "data-local",
+      "relevantAnchors": [{ "docId": "hr-handbook", "mustContain": ["财务总监"] }],
+      "goldFacts": ["超过 10000 元需财务总监审批"],
+      "allowedAnswers": ["财务总监"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    },
+    {
+      "queryId": "q045",
+      "question": "安装 Agent Hub 需要配置什么模型？",
+      "type": "activity-local",
+      "relevantAnchors": [{ "docId": "product-guide", "mustContain": ["嵌入模型"] }],
+      "goldFacts": ["配置嵌入模型与数据源"],
+      "allowedAnswers": ["嵌入模型"],
+      "needsGraph": false,
+      "needsGlobalCommunity": false
+    }
+  ]
+}

@@ -1,0 +1,141 @@
+/**
+ * AI 模块主题色（亮 / 暗）
+ *
+ * 业务页通过 ai-tokens.scss 的 SCSS 别名读取这些 CSS 变量；
+ * 硬编码的 #fff / #F4F4F7 等也请改为 var(--ai-*)，否则 html.dark 下不会切换。
+ */
+
+:root {
+  /* 文本 */
+  --ai-text: #1d1d1f;
+  --ai-text2: #6e6e73;
+  --ai-text3: #5a5c64;
+  --ai-text-think: #3c3e45;
+  --ai-gray: #8e8e93;
+  --ai-gray2: #aeaeb2;
+  --ai-gray3: #c7c7cc;
+  --ai-gray5: #e5e5ea;
+
+  /* 页面 / 卡片 / 块 */
+  --ai-page-base: #f4f4f7;
+  --ai-page-bg:
+    radial-gradient(900px 460px at 8% -6%, rgba(10, 132, 255, 0.07), transparent 60%),
+    radial-gradient(760px 420px at 96% 4%, rgba(20, 184, 166, 0.06), transparent 62%),
+    var(--ai-page-base);
+  --ai-card-bg: #ffffff;
+  --ai-card-off: #fcfcfd;
+  --ai-block-bg: #fbfbfd;
+  --ai-block-bg-2: #f6f6f9;
+  --ai-code-bg: #f5f5f7;
+  --ai-search-bg: rgba(255, 255, 255, 0.75);
+  --ai-surface-glass: rgba(255, 255, 255, 0.6);
+  --ai-sheet-bg: #ffffff;
+  --ai-chip-bg: rgba(255, 255, 255, 0.7);
+  --ai-jump-bg: rgba(255, 255, 255, 0.94);
+  --ai-user-bubble: #e8f1ff;
+
+  /* 填充 / 描边（亮色用黑透明，暗色用白透明） */
+  --ai-fill-1: rgba(0, 0, 0, 0.022);
+  --ai-fill-2: rgba(0, 0, 0, 0.045);
+  --ai-fill-3: rgba(0, 0, 0, 0.06);
+  --ai-fill-4: rgba(0, 0, 0, 0.08);
+  --ai-hover: rgba(0, 0, 0, 0.05);
+  --ai-hover-strong: rgba(0, 0, 0, 0.1);
+  --ai-border: rgba(0, 0, 0, 0.05);
+  --ai-border-2: rgba(0, 0, 0, 0.07);
+  --ai-border-3: rgba(0, 0, 0, 0.09);
+  --ai-border-4: rgba(0, 0, 0, 0.12);
+  --ai-input-bg: rgba(0, 0, 0, 0.02);
+  --ai-input-focus-bg: #ffffff;
+  --ai-overlay: rgba(0, 0, 0, 0.42);
+  --ai-scrollbar: rgba(0, 0, 0, 0.12);
+
+  /* 阴影（完整声明，直接 box-shadow: var(--ai-shadow-*)） */
+  --ai-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --ai-shadow-md: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --ai-shadow-card: 0 14px 34px rgba(0, 0, 0, 0.11);
+  --ai-shadow-sheet: 0 28px 90px rgba(0, 0, 0, 0.24);
+  /* 仅颜色分量，用于 0 Npx Mpx var(--ai-elev) 写法 */
+  --ai-elev: rgba(0, 0, 0, 0.08);
+  --ai-elev-strong: rgba(0, 0, 0, 0.18);
+
+  /* 兼容旧 ai-card 设计系统 */
+  --ai-legacy-page: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  --ai-legacy-card: rgba(255, 255, 255, 0.9);
+  --ai-legacy-name: #1e293b;
+  --ai-legacy-muted: #94a3b8;
+  --ai-legacy-value: #334155;
+  --ai-legacy-desc: #64748b;
+  --ai-legacy-soft: #f1f5f9;
+  --ai-legacy-border: #e2e8f0;
+  --ai-legacy-footer: rgba(248, 250, 252, 0.6);
+  --ai-legacy-header: linear-gradient(135deg, #fafbff 0%, #f8fafc 100%);
+
+  /* 语义色（错误/警告文案在暗底上也保持可读） */
+  --ai-err-text: #9f2d27;
+  --ai-warn-text: #8a5700;
+}
+
+html.dark {
+  --ai-text: #f5f5f7;
+  --ai-text2: #a1a1a6;
+  --ai-text3: #98989d;
+  --ai-text-think: #c7c7cc;
+  --ai-gray: #98989d;
+  --ai-gray2: #6e6e73;
+  --ai-gray3: #48484a;
+  --ai-gray5: #3a3a3c;
+
+  --ai-page-base: #0c0c0e;
+  --ai-page-bg:
+    radial-gradient(900px 460px at 8% -6%, rgba(10, 132, 255, 0.14), transparent 60%),
+    radial-gradient(760px 420px at 96% 4%, rgba(20, 184, 166, 0.1), transparent 62%),
+    var(--ai-page-base);
+  --ai-card-bg: #1c1c1e;
+  --ai-card-off: #161618;
+  --ai-block-bg: #2c2c2e;
+  --ai-block-bg-2: #242426;
+  --ai-code-bg: #2c2c2e;
+  --ai-search-bg: rgba(44, 44, 46, 0.88);
+  --ai-surface-glass: rgba(28, 28, 30, 0.72);
+  --ai-sheet-bg: #1c1c1e;
+  --ai-chip-bg: rgba(44, 44, 46, 0.85);
+  --ai-jump-bg: rgba(44, 44, 46, 0.94);
+  --ai-user-bubble: rgba(10, 132, 255, 0.18);
+
+  --ai-fill-1: rgba(255, 255, 255, 0.035);
+  --ai-fill-2: rgba(255, 255, 255, 0.06);
+  --ai-fill-3: rgba(255, 255, 255, 0.08);
+  --ai-fill-4: rgba(255, 255, 255, 0.1);
+  --ai-hover: rgba(255, 255, 255, 0.08);
+  --ai-hover-strong: rgba(255, 255, 255, 0.14);
+  --ai-border: rgba(255, 255, 255, 0.08);
+  --ai-border-2: rgba(255, 255, 255, 0.1);
+  --ai-border-3: rgba(255, 255, 255, 0.12);
+  --ai-border-4: rgba(255, 255, 255, 0.16);
+  --ai-input-bg: rgba(255, 255, 255, 0.05);
+  --ai-input-focus-bg: #2c2c2e;
+  --ai-overlay: rgba(0, 0, 0, 0.62);
+  --ai-scrollbar: rgba(255, 255, 255, 0.16);
+
+  --ai-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --ai-shadow-md: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --ai-shadow-card: 0 14px 34px rgba(0, 0, 0, 0.5);
+  --ai-shadow-sheet: 0 28px 90px rgba(0, 0, 0, 0.6);
+  --ai-elev: rgba(0, 0, 0, 0.45);
+  --ai-elev-strong: rgba(0, 0, 0, 0.6);
+
+  --ai-legacy-page: linear-gradient(180deg, #141414 0%, #0f0f0f 100%);
+  --ai-legacy-card: rgba(28, 28, 30, 0.95);
+  --ai-legacy-name: #f5f5f7;
+  --ai-legacy-muted: #8e8e93;
+  --ai-legacy-value: #d1d1d6;
+  --ai-legacy-desc: #a1a1a6;
+  --ai-legacy-soft: #2c2c2e;
+  --ai-legacy-border: #3a3a3c;
+  --ai-legacy-footer: rgba(28, 28, 30, 0.85);
+  --ai-legacy-header: linear-gradient(135deg, #1c1c1e 0%, #141414 100%);
+
+  --ai-err-text: #ff8a80;
+  --ai-warn-text: #ffb74d;
+}

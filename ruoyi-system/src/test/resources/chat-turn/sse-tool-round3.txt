@@ -1,0 +1,5 @@
+data: {"id":"chatcmpl-t3","object":"chat.completion.chunk","created":1,"model":"test-model","choices":[{"index":0,"delta":{"role":"assistant","content":"done"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl-t3","object":"chat.completion.chunk","created":1,"model":"test-model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":6541,"completion_tokens":20,"total_tokens":6561,"prompt_tokens_details":{"cached_tokens":4096}}}
+
+data: [DONE]

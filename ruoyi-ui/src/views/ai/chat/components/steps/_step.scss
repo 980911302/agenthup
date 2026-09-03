@@ -1,0 +1,126 @@
+// 过程步骤(思考 / 工具 / 子智能体 / 摘要)的公共样式。
+// 四个 step 组件各自 @use 一份（scoped 下无法共享编译结果，但源头只有这一处）。
+//
+// 设计约定：
+// - 类型只靠图标区分。原先「彩色左边框 + emoji + badge」三重编码，每种都很弱，
+//   叠在一起反而杂乱；现在统一无边框，图标承担识别。
+//   工具图标进一步按**动作语义**分组(读/写/执行/搜索/查询/定时/MCP，见 ToolIcon.vue)——
+//   一屏十几个调用全长一样时，光有工具名扫不出「读文件」和「跑命令」的差别。
+// - 状态点(成功/失败/进行中)是唯一的颜色信号，失败必须一眼可见。
+//   这也是工具类型只给图标、不给底色的原因：类型再占用颜色通道，失败态就不再突出。
+@use '../../../../../assets/styles/ai-tokens.scss' as *;
+
+// 2026 风格：每个过程步骤是一张轻量卡片 —— 白底 + 细边框 + 圆角 + hover 微提。
+// 一屏十几个工具调用时，卡片边界让每一步的起止一目了然；
+// 类型靠图标小圆底区分，状态点保留为唯一颜色信号。
+.step {
+  border-radius: 10px;
+  border: 1px solid var(--ai-border);
+  background: var(--ai-card-bg);
+  box-shadow: 0 1px 2px var(--ai-fill-1);
+  transition: border-color 0.16s $ai-ease, box-shadow 0.16s $ai-ease;
+
+  &:hover { border-color: var(--ai-border-3); box-shadow: 0 2px 6px var(--ai-fill-2); }
+
+  &__summary {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 9px;
+    cursor: pointer; user-select: none; list-style: none;
+    transition: background 0.16s $ai-ease;
+    &::-webkit-details-marker { display: none; }
+    &:hover { background: var(--ai-fill-1); }
+  }
+
+  &__icon {
+    width: 24px; height: 24px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: $ai-text3;
+    background: var(--ai-fill-2);
+    border-radius: 8px;
+  }
+
+  &__name {
+    font-size: $ai-fs-5; font-weight: 550; color: $text; flex-shrink: 0;
+  }
+
+  // 折叠时也能看出这一步干了什么 —— 只有工具名等于什么都没说
+  &__brief {
+    font-family: $mono; font-size: $ai-fs-6; color: $ai-text3;
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  &__meta {
+    display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+    font-size: $ai-fs-6; color: $ai-text3; font-variant-numeric: tabular-nums;
+  }
+
+  &__dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    &--ok { background: $green; }
+    &--err { background: $red; }
+    &--run { background: $blue; animation: step-pulse 1.2s infinite ease-in-out; }
+  }
+
+  &__body {
+    display: flex; flex-direction: column; gap: 7px;
+    padding: 2px 10px 10px 42px;
+  }
+
+  &__label { font-size: $ai-fs-6; color: $ai-text3; font-weight: 550; }
+
+  // 每个字段(入参/返回)自成一列，展开按钮贴在代码块下方左对齐
+  &__field {
+    display: flex; flex-direction: column; align-items: flex-start;
+    min-width: 0; width: 100%;
+  }
+
+  // 工具返回可以到几万字符(runShell 单次上限 30,000)。
+  // 折叠由 useCollapsibleText 在**数据层**做 —— 折叠态只渲染片段，不进 DOM；
+  // 这里的限高只服务展开态，避免一屏被单个返回占满。
+  &__code {
+    font-family: $mono; font-size: $ai-fs-6; line-height: 1.6;
+    background: var(--ai-code-bg); color: $text;
+    border: 1px solid var(--ai-border); border-radius: 8px;
+    padding: 8px 10px; margin: 3px 0 0;
+    max-height: 400px; overflow: auto;
+    white-space: pre-wrap; word-break: break-word;
+    width: 100%; box-sizing: border-box;
+  }
+
+  // 展开/收起：文本按钮，刻意不用主色 —— 颜色通道留给状态点
+  &__more {
+    margin-top: 5px; padding: 2px 8px;
+    font-family: inherit; font-size: $ai-fs-6; color: $ai-text3;
+    background: transparent;
+    border: 1px solid var(--ai-border); border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.16s $ai-ease, color 0.16s $ai-ease;
+    &:hover { background: var(--ai-hover); color: $text; }
+  }
+
+  &__code--err {
+    background: rgba(255, 59, 48, 0.05);
+    border-color: rgba(255, 59, 48, 0.18);
+    color: #A8281F;
+  }
+
+  // 思考链正文：柔和引用块(浅底 + 左侧线)，和工具卡片、正文明显区分，
+  // 且保持对比度达标 —— 这正是排查 agent 行为时最需要读的内容。
+  &__think {
+    font-size: $ai-fs-5; line-height: 1.68; color: $ai-text-think;
+    white-space: pre-wrap; word-break: break-word;
+    background: var(--ai-fill-1);
+    border-left: 3px solid rgba(10, 132, 255, 0.30);
+    border-radius: 0 8px 8px 0;
+    padding: 9px 12px;
+  }
+
+  &--err &__name { color: #C4362D; }
+  &--err &__summary { background: rgba(255, 59, 48, 0.05); }
+}
+
+@keyframes step-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}

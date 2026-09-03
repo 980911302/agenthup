@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.SysUserOauthAccountMapper">
+
+    <resultMap id="SysUserOauthAccountResult" type="SysUserOauthAccount">
+        <id property="oauthId" column="oauth_id" />
+        <result property="userId" column="user_id" />
+        <result property="provider" column="provider" />
+        <result property="issuer" column="issuer" />
+        <result property="subject" column="subject" />
+        <result property="userName" column="user_name" />
+        <result property="email" column="email" />
+        <result property="avatar" column="avatar" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <select id="selectByIssuerAndSubject" resultMap="SysUserOauthAccountResult">
+        select oauth_id, user_id, provider, issuer, subject, user_name, email, avatar, create_time, update_time
+        from sys_user_oauth_account
+        where issuer = #{issuer} and subject = #{subject}
+        limit 1
+    </select>
+
+    <insert id="insert" parameterType="SysUserOauthAccount" useGeneratedKeys="true" keyProperty="oauthId">
+        insert into sys_user_oauth_account
+        (user_id, provider, issuer, subject, user_name, email, avatar, create_time, update_time)
+        values (#{userId}, #{provider}, #{issuer}, #{subject}, #{userName}, #{email}, #{avatar}, sysdate(), sysdate())
+    </insert>
+
+    <update id="updateProfile" parameterType="SysUserOauthAccount">
+        update sys_user_oauth_account
+        set user_name = #{userName}, email = #{email}, avatar = #{avatar}, update_time = sysdate()
+        where oauth_id = #{oauthId}
+    </update>
+</mapper>

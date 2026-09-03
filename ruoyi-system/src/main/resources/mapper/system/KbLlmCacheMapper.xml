@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.KbLlmCacheMapper">
+
+    <resultMap type="KbLlmCache" id="KbLlmCacheResult">
+        <result property="cacheKey"   column="cache_key"   />
+        <result property="cacheType"  column="cache_type"  />
+        <result property="response"   column="response"    />
+        <result property="modelCode"  column="model_code"  />
+        <result property="hitCount"   column="hit_count"   />
+        <result property="createTime" column="create_time" />
+    </resultMap>
+
+    <select id="selectByKey" parameterType="String" resultMap="KbLlmCacheResult">
+        select cache_key, cache_type, response, model_code, hit_count, create_time
+          from kb_llm_cache
+         where cache_key = #{cacheKey}
+    </select>
+
+    <insert id="insert" parameterType="KbLlmCache">
+        insert into kb_llm_cache (cache_key, cache_type, response, model_code, hit_count, create_time)
+        values (#{cacheKey}, #{cacheType}, #{response}, #{modelCode}, 0, now())
+        on conflict (cache_key) do nothing
+    </insert>
+
+    <update id="incrementHit">
+        update kb_llm_cache set hit_count = hit_count + 1 where cache_key = #{cacheKey}
+    </update>
+</mapper>

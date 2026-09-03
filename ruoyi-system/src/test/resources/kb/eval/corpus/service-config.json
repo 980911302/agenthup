@@ -1,0 +1,21 @@
+{
+  "service": {
+    "name": "agent-service",
+    "port": 8080,
+    "region": "cn-east"
+  },
+  "kb": {
+    "neo4j": {
+      "enabled": false,
+      "uri": "bolt://localhost:7687"
+    },
+    "embedding": {
+      "model": "text-embedding-v3",
+      "dim": 1024
+    }
+  },
+  "features": {
+    "graphExtract": false,
+    "community": false
+  }
+}

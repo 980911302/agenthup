@@ -1,0 +1,12 @@
+-- ============================================================
+-- 知识引擎入口说明（不再单独挂 sys_menu）
+-- ============================================================
+-- 产品入口：知识库列表页右上角「知识引擎」抽屉（仅平台管理员可见）
+-- 隐藏路由兼容：/ai/kb-engine/index
+-- 若历史环境误加了菜单，可清理：
+--
+-- DELETE FROM sys_role_menu WHERE menu_id IN (
+--   SELECT menu_id FROM sys_menu WHERE path = 'kb-engine' OR component = 'ai/kb/engine'
+-- );
+-- DELETE FROM sys_menu WHERE path = 'kb-engine' OR component = 'ai/kb/engine';
+

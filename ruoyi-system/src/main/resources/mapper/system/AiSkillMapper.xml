@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiSkillMapper">
+
+    <resultMap type="AiSkill" id="AiSkillResult">
+        <result property="skillId"        column="skill_id"        />
+        <result property="skillCode"      column="skill_code"      />
+        <result property="skillName"      column="skill_name"      />
+        <result property="category"       column="category"        />
+        <result property="description"    column="description"     />
+        <result property="promptTemplate" column="prompt_template" />
+        <result property="sort"           column="sort"            />
+        <result property="status"         column="status"          />
+        <result property="visibility"     column="visibility"      />
+        <result property="ownerUserId"    column="owner_user_id"   />
+        <result property="delFlag"        column="del_flag"        />
+        <result property="createBy"       column="create_by"       />
+        <result property="createTime"     column="create_time"     />
+        <result property="updateBy"       column="update_by"       />
+        <result property="updateTime"     column="update_time"     />
+        <result property="remark"         column="remark"          />
+    </resultMap>
+
+    <sql id="selectAiSkillVo">
+        select skill_id, skill_code, skill_name, category, description, prompt_template,
+               sort, status, visibility, owner_user_id, del_flag, create_by, create_time, update_by, update_time, remark
+        from ai_skill
+    </sql>
+
+    <select id="selectAiSkillById" parameterType="Long" resultMap="AiSkillResult">
+        <include refid="selectAiSkillVo"/>
+        where del_flag = '0' and skill_id = #{skillId}
+    </select>
+
+    <select id="selectAiSkillByCode" parameterType="String" resultMap="AiSkillResult">
+        <include refid="selectAiSkillVo"/>
+        where del_flag = '0' and skill_code = #{skillCode}
+        limit 1
+    </select>
+
+    <select id="selectAiSkillList" parameterType="AiSkill" resultMap="AiSkillResult">
+        <include refid="selectAiSkillVo"/>
+        <where>
+            del_flag = '0'
+            <if test="skillCode != null and skillCode != ''">
+                AND skill_code like concat('%', #{skillCode}, '%')
+            </if>
+            <if test="skillName != null and skillName != ''">
+                AND skill_name like concat('%', #{skillName}, '%')
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        order by sort asc, skill_id desc
+    </select>
+
+    <!-- 客户端只允许读取公共技能与当前用户的私有技能。调用者再映射为白名单 DTO，绝不下发模板。 -->
+    <select id="selectAvailableSkillsForUser" resultMap="AiSkillResult">
+        <include refid="selectAiSkillVo"/>
+        <where>
+            del_flag = '0' and status = '0'
+            and (visibility = 'PUBLIC' or (visibility = 'PRIVATE' and owner_user_id = #{userId}))
+            <if test="skillIds != null and skillIds.size() > 0">
+                and skill_id in
+                <foreach item="skillId" collection="skillIds" open="(" separator="," close=")">
+                    #{skillId}
+                </foreach>
+            </if>
+        </where>
+        order by case when visibility = 'PRIVATE' then 0 else 1 end, sort asc, skill_id desc
+    </select>
+
+    <insert id="insertAiSkill" parameterType="AiSkill" useGeneratedKeys="true" keyProperty="skillId">
+        insert into ai_skill
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="skillCode != null and skillCode != ''">skill_code,</if>
+            <if test="skillName != null and skillName != ''">skill_name,</if>
+            <if test="category != null and category != ''">category,</if>
+            <if test="description != null and description != ''">description,</if>
+            <if test="promptTemplate != null and promptTemplate != ''">prompt_template,</if>
+            <if test="sort != null">sort,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="visibility != null and visibility != ''">visibility,</if>
+            <if test="ownerUserId != null">owner_user_id,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="skillCode != null and skillCode != ''">#{skillCode},</if>
+            <if test="skillName != null and skillName != ''">#{skillName},</if>
+            <if test="category != null and category != ''">#{category},</if>
+            <if test="description != null and description != ''">#{description},</if>
+            <if test="promptTemplate != null and promptTemplate != ''">#{promptTemplate},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="visibility != null and visibility != ''">#{visibility},</if>
+            <if test="ownerUserId != null">#{ownerUserId},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateAiSkill" parameterType="AiSkill">
+        update ai_skill
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="skillCode != null and skillCode != ''">skill_code = #{skillCode},</if>
+            <if test="skillName != null and skillName != ''">skill_name = #{skillName},</if>
+            <if test="category != null and category != ''">category = #{category},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="promptTemplate != null and promptTemplate != ''">prompt_template = #{promptTemplate},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="visibility != null and visibility != ''">visibility = #{visibility},</if>
+            <choose>
+                <when test="visibility == 'PUBLIC'">owner_user_id = null,</when>
+                <when test="ownerUserId != null">owner_user_id = #{ownerUserId},</when>
+            </choose>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </trim>
+        where skill_id = #{skillId}
+    </update>
+
+    <select id="selectAiSkillByCodeIncludeDeleted" parameterType="String" resultMap="AiSkillResult">
+        <include refid="selectAiSkillVo"/>
+        where skill_code = #{skillCode}
+        order by skill_id desc limit 1
+    </select>
+
+    <update id="reactivateAiSkill" parameterType="AiSkill">
+        update ai_skill
+           set del_flag = '0',
+               status = '0',
+               skill_name = #{skillName},
+               category = #{category},
+               description = #{description},
+               prompt_template = #{promptTemplate},
+               sort = #{sort},
+               visibility = #{visibility},
+               owner_user_id = #{ownerUserId},
+               remark = #{remark},
+               update_by = #{updateBy},
+               update_time = sysdate()
+         where skill_id = #{skillId}
+    </update>
+
+    <delete id="deleteAiSkillById" parameterType="Long">
+        update ai_skill set del_flag = '2' where skill_id = #{skillId}
+    </delete>
+
+    <delete id="deleteAiSkillByIds" parameterType="Long">
+        update ai_skill set del_flag = '2' where skill_id in
+        <foreach item="skillId" collection="array" open="(" separator="," close=")">
+            #{skillId}
+        </foreach>
+    </delete>
+
+</mapper>

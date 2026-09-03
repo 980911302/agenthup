@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiToolMapper">
+
+    <resultMap type="AiTool" id="AiToolResult">
+        <result property="toolId"         column="tool_id"         />
+        <result property="toolCode"       column="tool_code"       />
+        <result property="toolName"       column="tool_name"       />
+        <result property="description"    column="description"     />
+        <result property="toolType"       column="tool_type"       />
+        <result property="category"       column="category"        />
+        <result property="beanName"       column="bean_name"       />
+        <result property="methodName"     column="method_name"     />
+        <result property="mcpServerId"    column="mcp_server_id"   />
+        <result property="remoteToolName" column="remote_tool_name" />
+        <result property="inputSchema"    column="input_schema"    />
+        <result property="returnDesc"     column="return_desc"     />
+        <result property="sort"           column="sort"            />
+        <result property="maxCallsPerRun" column="max_calls_per_run"/>
+        <result property="requireConfirm" column="require_confirm" />
+        <result property="status"         column="status"          />
+        <result property="delFlag"        column="del_flag"        />
+        <result property="createBy"       column="create_by"       />
+        <result property="createTime"     column="create_time"     />
+        <result property="updateBy"       column="update_by"       />
+        <result property="updateTime"     column="update_time"     />
+        <result property="remark"         column="remark"          />
+        <result property="mcpServerName"  column="server_name"     />
+    </resultMap>
+
+    <sql id="selectAiToolVo">
+        select t.tool_id, t.tool_code, t.tool_name, t.description, t.tool_type, t.category,
+               t.bean_name, t.method_name, t.mcp_server_id, t.remote_tool_name,
+               t.input_schema, t.return_desc, t.sort, t.max_calls_per_run, t.require_confirm, t.status,
+               t.create_by, t.create_time, t.update_by, t.update_time, t.remark,
+               s.server_name
+        from ai_tool t
+        left join ai_mcp_server s on t.mcp_server_id = s.mcp_server_id and s.del_flag = '0'
+    </sql>
+
+    <select id="selectAiToolById" parameterType="Long" resultMap="AiToolResult">
+        <include refid="selectAiToolVo"/>
+        where t.del_flag = '0' and t.tool_id = #{toolId}
+    </select>
+
+    <select id="selectAiToolList" parameterType="AiTool" resultMap="AiToolResult">
+        <include refid="selectAiToolVo"/>
+        <where>
+            t.del_flag = '0'
+            <if test="toolCode != null and toolCode != ''">
+                AND t.tool_code like concat('%', #{toolCode}, '%')
+            </if>
+            <if test="toolName != null and toolName != ''">
+                AND t.tool_name like concat('%', #{toolName}, '%')
+            </if>
+            <if test="toolType != null and toolType != ''">
+                AND t.tool_type = #{toolType}
+            </if>
+            <if test="category != null and category != ''">
+                AND t.category = #{category}
+            </if>
+            <if test="mcpServerId != null">
+                AND t.mcp_server_id = #{mcpServerId}
+            </if>
+            <if test="status != null and status != ''">
+                AND t.status = #{status}
+            </if>
+        </where>
+        order by t.sort asc, t.tool_id desc
+    </select>
+
+    <!-- 按 tool_code 精确查询(同步判重用,不能用上面的 like 模糊匹配) -->
+    <select id="selectAiToolByCode" parameterType="String" resultMap="AiToolResult">
+        <include refid="selectAiToolVo"/>
+        where t.del_flag = '0' and t.tool_code = #{toolCode}
+        limit 1
+    </select>
+
+    <!-- 含软删行。用于"删除后重新同步/添加"时发现并复活,避免撞 uk_tool_code。
+         不 join mcp_server:server 若被软删仍要能找到工具行。 -->
+    <select id="selectAiToolByCodeIncludeDeleted" parameterType="String" resultMap="AiToolResult">
+        select t.tool_id, t.tool_code, t.tool_name, t.description, t.tool_type, t.category,
+               t.bean_name, t.method_name, t.mcp_server_id, t.remote_tool_name,
+               t.input_schema, t.return_desc, t.sort, t.max_calls_per_run, t.require_confirm,
+               t.status, t.del_flag,
+               t.create_by, t.create_time, t.update_by, t.update_time, t.remark
+          from ai_tool t
+         where t.tool_code = #{toolCode}
+         order by t.tool_id desc
+         limit 1
+    </select>
+
+    <insert id="insertAiTool" parameterType="AiTool" useGeneratedKeys="true" keyProperty="toolId">
+        insert into ai_tool
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="toolCode != null and toolCode != ''">tool_code,</if>
+            <if test="toolName != null and toolName != ''">tool_name,</if>
+            <if test="description != null and description != ''">description,</if>
+            <if test="toolType != null and toolType != ''">tool_type,</if>
+            <if test="category != null and category != ''">category,</if>
+            <if test="beanName != null and beanName != ''">bean_name,</if>
+            <if test="methodName != null and methodName != ''">method_name,</if>
+            <if test="mcpServerId != null">mcp_server_id,</if>
+            <if test="remoteToolName != null and remoteToolName != ''">remote_tool_name,</if>
+            <if test="inputSchema != null and inputSchema != ''">input_schema,</if>
+            <if test="returnDesc != null and returnDesc != ''">return_desc,</if>
+            <if test="sort != null">sort,</if>
+            <if test="maxCallsPerRun != null">max_calls_per_run,</if>
+            <if test="requireConfirm != null and requireConfirm != ''">require_confirm,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="toolCode != null and toolCode != ''">#{toolCode},</if>
+            <if test="toolName != null and toolName != ''">#{toolName},</if>
+            <if test="description != null and description != ''">#{description},</if>
+            <if test="toolType != null and toolType != ''">#{toolType},</if>
+            <if test="category != null and category != ''">#{category},</if>
+            <if test="beanName != null and beanName != ''">#{beanName},</if>
+            <if test="methodName != null and methodName != ''">#{methodName},</if>
+            <if test="mcpServerId != null">#{mcpServerId},</if>
+            <if test="remoteToolName != null and remoteToolName != ''">#{remoteToolName},</if>
+            <if test="inputSchema != null and inputSchema != ''">#{inputSchema},</if>
+            <if test="returnDesc != null and returnDesc != ''">#{returnDesc},</if>
+            <if test="sort != null">#{sort},</if>
+            <if test="maxCallsPerRun != null">#{maxCallsPerRun},</if>
+            <if test="requireConfirm != null and requireConfirm != ''">#{requireConfirm},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateAiTool" parameterType="AiTool">
+        update ai_tool
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="toolCode != null and toolCode != ''">tool_code = #{toolCode},</if>
+            <if test="toolName != null and toolName != ''">tool_name = #{toolName},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="toolType != null and toolType != ''">tool_type = #{toolType},</if>
+            <if test="category != null and category != ''">category = #{category},</if>
+            <if test="beanName != null">bean_name = #{beanName},</if>
+            <if test="methodName != null">method_name = #{methodName},</if>
+            <if test="mcpServerId != null">mcp_server_id = #{mcpServerId},</if>
+            <if test="remoteToolName != null">remote_tool_name = #{remoteToolName},</if>
+            <if test="inputSchema != null">input_schema = #{inputSchema},</if>
+            <if test="returnDesc != null">return_desc = #{returnDesc},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="maxCallsPerRun != null">max_calls_per_run = #{maxCallsPerRun},</if>
+            <if test="requireConfirm != null and requireConfirm != ''">require_confirm = #{requireConfirm},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </trim>
+        where tool_id = #{toolId}
+    </update>
+
+    <!-- 复活软删行:取消删除标记并覆写同步字段,绕过 uk_tool_code -->
+    <update id="reactivateAiTool" parameterType="AiTool">
+        update ai_tool
+           set del_flag = '0',
+               status = '0',
+               tool_name = #{toolName},
+               description = #{description},
+               tool_type = #{toolType},
+               category = #{category},
+               input_schema = #{inputSchema},
+               mcp_server_id = #{mcpServerId},
+               remote_tool_name = #{remoteToolName},
+               update_time = sysdate()
+         where tool_id = #{toolId}
+    </update>
+
+    <delete id="deleteAiToolById" parameterType="Long">
+        delete from ai_tool where tool_id = #{toolId}
+    </delete>
+
+    <delete id="deleteAiToolByIds" parameterType="Long">
+        delete from ai_tool where tool_id in
+        <foreach item="toolId" collection="array" open="(" separator="," close=")">
+            #{toolId}
+        </foreach>
+    </delete>
+
+    <!-- 按 MCP server 物理删除其所有工具(删 server 时调用) -->
+    <delete id="deleteAiToolByMcpServerId" parameterType="Long">
+        delete from ai_tool
+        where tool_type = '2' and mcp_server_id = #{mcpServerId}
+    </delete>
+
+    <!-- 查询存量 MCP server 的 ID 列表(清理孤儿 MCP 工具用) -->
+    <select id="selectMcpServerIds" resultType="Long">
+        select mcp_server_id from ai_mcp_server where del_flag = '0'
+    </select>
+
+    <!-- 查询某 MCP server 名下全部工具 ID -->
+    <select id="selectToolIdsByMcpServerId" resultType="Long">
+        select tool_id from ai_tool where mcp_server_id = #{mcpServerId}
+    </select>
+
+</mapper>

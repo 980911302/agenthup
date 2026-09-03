@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.KbAclMemberMapper">
+
+    <resultMap type="com.ruoyi.system.domain.KbAclMember" id="KbAclMemberResult">
+        <result property="id" column="id"/>
+        <result property="kbId" column="kb_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="role" column="role"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <select id="selectByKbId" resultMap="KbAclMemberResult">
+        select id, kb_id, user_id, role, create_by, create_time
+          from kb_acl_member
+         where kb_id = #{kbId}
+         order by id asc
+    </select>
+
+    <select id="selectByKbAndUser" resultMap="KbAclMemberResult">
+        select id, kb_id, user_id, role, create_by, create_time
+          from kb_acl_member
+         where kb_id = #{kbId} and user_id = #{userId}
+         limit 1
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.system.domain.KbAclMember" useGeneratedKeys="true" keyProperty="id">
+        insert into kb_acl_member (kb_id, user_id, role, create_by, create_time)
+        values (#{kbId}, #{userId}, #{role}, #{createBy}, current_timestamp)
+        on conflict (kb_id, user_id) do update set
+            role = excluded.role
+    </insert>
+
+    <!-- 与 insert 同语义；转移负责人等路径显式调用，语义为幂等 upsert -->
+    <insert id="upsert" parameterType="com.ruoyi.system.domain.KbAclMember" useGeneratedKeys="true" keyProperty="id">
+        insert into kb_acl_member (kb_id, user_id, role, create_by, create_time)
+        values (#{kbId}, #{userId}, #{role}, #{createBy}, current_timestamp)
+        on conflict (kb_id, user_id) do update set
+            role = excluded.role
+    </insert>
+
+    <update id="updateRole" parameterType="com.ruoyi.system.domain.KbAclMember">
+        update kb_acl_member
+           set role = #{role}
+         where kb_id = #{kbId} and user_id = #{userId}
+    </update>
+
+    <delete id="deleteByKbAndUser">
+        delete from kb_acl_member where kb_id = #{kbId} and user_id = #{userId}
+    </delete>
+
+    <delete id="deleteByKbId">
+        delete from kb_acl_member where kb_id = #{kbId}
+    </delete>
+</mapper>

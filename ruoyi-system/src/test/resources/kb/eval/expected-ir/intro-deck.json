@@ -1,0 +1,12 @@
+{
+  "docId": "intro-deck",
+  "fileName": "intro-deck.pptx",
+  "sourceType": "pptx",
+  "minBlocks": 2,
+  "requiredHeadings": [],
+  "requiredSubstrings": ["GraphRAG", "Local Search", "Global Search"],
+  "requiredBlockTypes": ["heading", "paragraph"],
+  "requiredSourceLabels": [],
+  "minPageNumber": 1,
+  "maxPageNumber": 2
+}

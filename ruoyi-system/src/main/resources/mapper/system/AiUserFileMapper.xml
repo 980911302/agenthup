@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiUserFileMapper">
+
+    <resultMap type="com.ruoyi.system.domain.AiUserFile" id="AiUserFileResult">
+        <id property="fileId" column="file_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="fileName" column="file_name"/>
+        <result property="objectKey" column="object_key"/>
+        <result property="fileSize" column="file_size"/>
+        <result property="contentType" column="content_type"/>
+        <result property="contentHash" column="content_hash"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <!-- 管理端列表专用，C 端查询不选这两列，保持 null -->
+        <result property="userName" column="userName"/>
+        <result property="nickName" column="nickName"/>
+    </resultMap>
+
+    <sql id="columns">
+        file_id, user_id, file_name, object_key, file_size, content_type,
+        content_hash, del_flag, create_by, create_time, update_time
+    </sql>
+
+    <select id="selectByUser" parameterType="com.ruoyi.system.domain.AiUserFile"
+            resultMap="AiUserFileResult">
+        select <include refid="columns"/> from ai_user_file
+        where del_flag = '0' and user_id = #{userId}
+        <if test="keyword != null and keyword != ''">
+            and file_name like concat('%', #{keyword}, '%')
+        </if>
+        <!-- 排序白名单:sortMode 来自查询参数,不能拼进 SQL,只能映射到固定分支。
+             字段名刻意不叫 orderBy —— PageHelper 的 supportMethodsArguments 会劫持那个名字,
+             详见 AiUserFile.sortMode 的注释 -->
+        <choose>
+            <when test="sortMode == 'name'">order by file_name asc, file_id desc</when>
+            <when test="sortMode == 'size'">order by file_size desc, file_id desc</when>
+            <otherwise>order by create_time desc, file_id desc</otherwise>
+        </choose>
+    </select>
+
+    <select id="selectByIdAndUser" resultMap="AiUserFileResult">
+        select <include refid="columns"/> from ai_user_file
+        where del_flag = '0' and file_id = #{fileId} and user_id = #{userId}
+    </select>
+
+    <select id="selectByUserAndHash" resultMap="AiUserFileResult">
+        select <include refid="columns"/> from ai_user_file
+        where del_flag = '0' and user_id = #{userId} and content_hash = #{contentHash}
+        order by file_id asc limit 1
+    </select>
+
+    <select id="sumSizeByUser" parameterType="Long" resultType="Long">
+        select coalesce(sum(file_size), 0) from ai_user_file
+        where del_flag = '0' and user_id = #{userId}
+    </select>
+
+    <select id="countByUser" parameterType="Long" resultType="int">
+        select count(1) from ai_user_file where del_flag = '0' and user_id = #{userId}
+    </select>
+
+    <select id="countLiveByObjectKey" parameterType="String" resultType="int">
+        select count(1) from ai_user_file where del_flag = '0' and object_key = #{objectKey}
+    </select>
+
+    <!-- ============ 管理端 ============ -->
+
+    <!-- 关联 sys_user 取用户名:管理端列表只显示 user_id 没法用,
+         left join 而非 inner join,用户被删也不该让文件从列表里消失 -->
+    <select id="selectAdminList" parameterType="com.ruoyi.system.domain.AiUserFile"
+            resultMap="AiUserFileResult">
+        select f.file_id, f.user_id, f.file_name, f.object_key, f.file_size, f.content_type,
+               f.content_hash, f.del_flag, f.create_by, f.create_time, f.update_time,
+               u.user_name as userName, u.nick_name as nickName
+          from ai_user_file f
+          left join sys_user u on u.user_id = f.user_id
+        <where>
+            f.del_flag = '0'
+            <if test="userId != null">and f.user_id = #{userId}</if>
+            <if test="fileName != null and fileName != ''">
+                and f.file_name like concat('%', #{fileName}, '%')
+            </if>
+            <if test="contentType != null and contentType != ''">
+                and f.content_type like concat(#{contentType}, '%')
+            </if>
+            <if test="createBy != null and createBy != ''">
+                and u.user_name like concat('%', #{createBy}, '%')
+            </if>
+        </where>
+        order by f.create_time desc, f.file_id desc
+    </select>
+
+    <select id="selectAdminByIds" resultMap="AiUserFileResult">
+        select <include refid="columns"/> from ai_user_file
+         where del_flag = '0' and file_id in
+        <foreach item="id" collection="fileIds" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+
+    <update id="softDeleteByIds">
+        update ai_user_file set del_flag = '2', update_time = now()
+         where del_flag = '0' and file_id in
+        <foreach item="id" collection="fileIds" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <select id="selectAdminUsageByUser" resultType="java.util.Map">
+        select f.user_id       as userId,
+               u.user_name     as userName,
+               u.nick_name     as nickName,
+               count(1)        as fileCount,
+               sum(f.file_size) as usedBytes
+          from ai_user_file f
+          left join sys_user u on u.user_id = f.user_id
+         where f.del_flag = '0'
+         group by f.user_id, u.user_name, u.nick_name
+         order by usedBytes desc
+    </select>
+
+    <select id="selectAdminTotals" resultType="java.util.Map">
+        select count(1)                      as fileCount,
+               ifnull(sum(file_size), 0)     as usedBytes,
+               count(distinct user_id)       as userCount
+          from ai_user_file where del_flag = '0'
+    </select>
+
+    <insert id="insertAiUserFile" parameterType="com.ruoyi.system.domain.AiUserFile"
+            useGeneratedKeys="true" keyProperty="fileId">
+        insert into ai_user_file
+        (user_id, file_name, object_key, file_size, content_type, content_hash,
+         del_flag, create_by, create_time, update_time)
+        values
+        (#{userId}, #{fileName}, #{objectKey}, #{fileSize}, #{contentType}, #{contentHash},
+         '0', #{createBy}, #{createTime}, #{updateTime})
+    </insert>
+
+    <update id="updateAiUserFile" parameterType="com.ruoyi.system.domain.AiUserFile">
+        update ai_user_file
+        <set>
+            <if test="fileName != null">file_name = #{fileName},</if>
+            <if test="fileSize != null">file_size = #{fileSize},</if>
+            <if test="contentType != null">content_type = #{contentType},</if>
+            <if test="contentHash != null">content_hash = #{contentHash},</if>
+            update_time = #{updateTime},
+        </set>
+        where file_id = #{fileId} and user_id = #{userId}
+    </update>
+
+    <update id="softDeleteByIdAndUser">
+        update ai_user_file set del_flag = '2', update_time = now()
+        where file_id = #{fileId} and user_id = #{userId} and del_flag = '0'
+    </update>
+
+</mapper>

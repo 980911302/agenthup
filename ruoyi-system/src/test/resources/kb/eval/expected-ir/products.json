@@ -1,0 +1,12 @@
+{
+  "docId": "products",
+  "fileName": "products.xlsx",
+  "sourceType": "xlsx",
+  "minBlocks": 2,
+  "requiredHeadings": [],
+  "requiredSubstrings": ["标准版", "企业版", "99", "999"],
+  "requiredBlockTypes": ["table_header", "table_row"],
+  "requiredSourceLabels": ["价目表"],
+  "minPageNumber": null,
+  "maxPageNumber": null
+}

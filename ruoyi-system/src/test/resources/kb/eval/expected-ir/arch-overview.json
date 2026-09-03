@@ -1,0 +1,12 @@
+{
+  "docId": "arch-overview",
+  "fileName": "arch-overview.docx",
+  "sourceType": "docx",
+  "minBlocks": 3,
+  "requiredHeadings": ["架构总览"],
+  "requiredSubstrings": ["PostgreSQL", "Neo4j", "向量检索"],
+  "requiredBlockTypes": ["heading", "paragraph"],
+  "requiredSourceLabels": [],
+  "minPageNumber": null,
+  "maxPageNumber": null
+}

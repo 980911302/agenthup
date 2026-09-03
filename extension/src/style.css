@@ -1,0 +1,445 @@
+/* ============================================================
+   AgentHub 桌面端 · Vibe Coding 设计系统 (Light & Dark 双主题)
+   ============================================================ */
+
+/* 默认 / 明亮主题：干净的蓝白工作台 */
+:root {
+  --theme-mode: 'light';
+
+  /* 基础背景层级 */
+  --bg: #f7faff;
+  --bg-sidebar: #f2f7ff;
+  --bg-raised: #ffffff;                /* 浮层 / 卡片 */
+  --bg-elevated: #ffffff;              /* 卡片 / 悬浮输入条 */
+  --bg-card: #ffffff;                  /* 卡片底色 (纯白) */
+  --bg-subtle: #f7faff;
+  --bg-hover: #eaf2ff;
+  --bg-active: #dbeafe;
+  --bg-input: #ffffff;                 /* 输入框内底 */
+  --bg-code: #eff6ff;
+  --bg-code-header: #dbeafe;
+  --text-code: #172554;
+
+  /* 边框与分割线 */
+  --border: rgba(30, 64, 175, 0.10);
+  --border-strong: rgba(30, 64, 175, 0.18);
+  --divider: rgba(30, 64, 175, 0.08);
+
+  /* 文字 */
+  --text: #172033;
+  --text-secondary: #4b5d78;
+  --text-tertiary: #8291a8;
+  --text-think: #334155;
+  --text-muted: var(--text-tertiary);
+
+  /* 强调色：产品蓝 */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-weak: rgba(37, 99, 235, 0.10);
+  --accent-border: rgba(37, 99, 235, 0.28);
+  --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --glow: 0 0 0 1px rgba(37, 99, 235, 0.16), 0 8px 24px rgba(37, 99, 235, 0.12);
+  --aura-glow: radial-gradient(circle at 50% 36%, rgba(59, 130, 246, 0.11) 0%, rgba(96, 165, 250, 0.05) 40%, transparent 70%);
+
+  /* 语义色 (薄荷绿 / 柔和琥珀 / 珊瑚红) */
+  --danger: #ef4444;
+  --danger-weak: rgba(239, 68, 68, 0.1);
+  --danger-border: rgba(239, 68, 68, 0.25);
+  --danger-text: #b91c1c;
+  --ok: #10b981;
+  --ok-weak: rgba(16, 185, 129, 0.1);
+  --ok-text: #047857;
+  --warn: #f59e0b;
+  --warn-weak: rgba(245, 158, 11, 0.1);
+  --warn-text: #b45309;
+
+  /* 阴影 & 圆角 (Aivory 原生规格) */
+  --radius-2xl: 24px;
+  --radius-xl: 20px;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --shadow: 0 12px 32px -8px rgba(30, 64, 175, 0.14), 0 4px 12px -4px rgba(30, 64, 175, 0.08);
+  --shadow-soft: 0 4px 20px rgba(30, 64, 175, 0.06);
+  --shadow-card: 0 1px 3px rgba(30, 64, 175, 0.06), 0 1px 2px rgba(30, 64, 175, 0.03);
+  --ring: 0 0 0 3px rgba(37, 99, 235, 0.18);
+
+  /* 动效节奏：与 Aivory 的轻量交互保持一致 */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-instant: 80ms;
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+
+  /* AI 命名空间映射 (Light) */
+  --ai-page-base: var(--bg);
+  --ai-card-bg: var(--bg-raised);
+  --ai-card-off: #f7faff;
+  --ai-block-bg: #eff6ff;
+  --ai-block-bg-2: #dbeafe;
+  --ai-code-bg: var(--bg-code);
+  --ai-search-bg: rgba(255, 255, 255, 0.95);
+  --ai-surface-glass: rgba(255, 255, 255, 0.85);
+  --ai-sheet-bg: #ffffff;
+  --ai-chip-bg: rgba(239, 246, 255, 0.9);
+  --ai-jump-bg: rgba(255, 255, 255, 0.92);
+  --ai-user-bubble: #eaf2ff;
+  --ai-user-bubble-text: #172554;
+
+  --ai-text: var(--text);
+  --ai-text2: var(--text-secondary);
+  --ai-text3: var(--text-tertiary);
+  --ai-text-think: var(--text-think);
+  --ai-gray: #64748b;
+  --ai-gray2: #8291a8;
+  --ai-gray3: #cbd5e1;
+  --ai-gray5: #dbeafe;
+
+  --ai-fill-1: rgba(37, 99, 235, 0.03);
+  --ai-fill-2: rgba(37, 99, 235, 0.05);
+  --ai-fill-3: rgba(37, 99, 235, 0.08);
+  --ai-fill-4: rgba(37, 99, 235, 0.12);
+  --ai-hover: rgba(37, 99, 235, 0.05);
+  --ai-hover-strong: rgba(37, 99, 235, 0.09);
+  --ai-border: var(--border);
+  --ai-border-2: rgba(30, 64, 175, 0.12);
+  --ai-border-3: rgba(30, 64, 175, 0.16);
+  --ai-border-4: rgba(30, 64, 175, 0.22);
+  --ai-input-bg: var(--bg-input);
+  --ai-input-focus-bg: #ffffff;
+  --ai-overlay: rgba(15, 23, 42, 0.42);
+  --ai-scrollbar: rgba(30, 64, 175, 0.18);
+
+  --ai-err-text: var(--danger-text);
+  --ai-warn-text: var(--warn-text);
+
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Text', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* 暗色主题：Aivory 式深色层级，保留 AgentHub 产品蓝 */
+html.dark, [data-theme="dark"] {
+  --theme-mode: 'dark';
+
+  /* 背景层级：深夜底色 + 克制的冷蓝染色 */
+  --bg: #060c13;
+  --bg-sidebar: #020408;
+  --bg-raised: #121a23;
+  --bg-elevated: #0d141c;
+  --bg-card: #0d141c;
+  --bg-subtle: #0a1017;
+  --bg-hover: #131c26;
+  --bg-active: #192737;
+  --bg-input: #04080e;
+  --bg-code: #080e16;
+  --bg-code-header: #111a24;
+  --text-code: #dce8f7;
+
+  /* 边框与分割：用灰阶亮度建立层次，不再泛蓝发亮 */
+  --border: #1d2731;
+  --border-strong: #303c49;
+  --divider: #18222b;
+
+  /* 文字：瓷白主文字 + 中性灰蓝辅助文字 */
+  --text: #dce2e9;
+  --text-secondary: #929ba6;
+  --text-tertiary: #66717d;
+  --text-think: #bdc7d2;
+  --text-muted: var(--text-tertiary);
+
+  /* 强调：只让交互重点发蓝，避免整张界面都是蓝黑色 */
+  --accent: #4f8dcc;
+  --accent-hover: #62a0df;
+  --accent-weak: #0b2035;
+  --accent-border: #214564;
+  --accent-gradient: linear-gradient(135deg, #5d9bda 0%, #367dbc 100%);
+  --glow: 0 0 0 1px rgba(79, 141, 204, 0.20), 0 9px 26px rgba(0, 52, 112, 0.14);
+  --aura-glow: radial-gradient(circle at 50% 36%, rgba(79, 141, 204, 0.11) 0%, rgba(54, 125, 188, 0.04) 42%, transparent 72%);
+
+  /* 语义色 */
+  --danger: #f87171;
+  --danger-weak: rgba(248, 113, 113, 0.14);
+  --danger-border: rgba(248, 113, 113, 0.28);
+  --danger-text: #fca5a5;
+  --ok: #34d399;
+  --ok-weak: rgba(52, 211, 153, 0.14);
+  --ok-text: #6ee7b7;
+  --warn: #fbbf24;
+  --warn-weak: rgba(251, 191, 36, 0.14);
+  --warn-text: #fde68a;
+
+  /* 阴影 & 环 */
+  --shadow: 0 24px 56px -12px rgba(0, 0, 0, 0.72);
+  --shadow-soft: 0 10px 28px -10px rgba(0, 0, 0, 0.58);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.015);
+  --ring: 0 0 0 3px rgba(79, 141, 204, 0.22);
+
+  /* AI 命名空间映射 (Dark) */
+  --ai-page-base: var(--bg);
+  --ai-card-bg: var(--bg-elevated);
+  --ai-card-off: var(--bg-subtle);
+  --ai-block-bg: #111b27;
+  --ai-block-bg-2: var(--bg-input);
+  --ai-code-bg: var(--bg-code);
+  --ai-search-bg: rgba(15, 23, 32, 0.92);
+  --ai-surface-glass: rgba(6, 12, 19, 0.82);
+  --ai-sheet-bg: var(--bg-elevated);
+  --ai-chip-bg: rgba(21, 30, 40, 0.92);
+  --ai-jump-bg: rgba(15, 23, 32, 0.96);
+  --ai-user-bubble: #102943;
+  --ai-user-bubble-text: #dce7f3;
+
+  --ai-text: var(--text);
+  --ai-text2: var(--text-secondary);
+  --ai-text3: var(--text-tertiary);
+  --ai-text-think: var(--text-think);
+  --ai-gray: #8d98a6;
+  --ai-gray2: #697480;
+  --ai-gray3: #3e4957;
+  --ai-gray5: #26313d;
+
+  --ai-fill-1: rgba(255, 255, 255, 0.025);
+  --ai-fill-2: rgba(255, 255, 255, 0.045);
+  --ai-fill-3: rgba(79, 141, 204, 0.08);
+  --ai-fill-4: rgba(79, 141, 204, 0.13);
+  --ai-hover: rgba(255, 255, 255, 0.045);
+  --ai-hover-strong: rgba(79, 141, 204, 0.10);
+  --ai-border: var(--border);
+  --ai-border-2: #25313d;
+  --ai-border-3: #303d4a;
+  --ai-border-4: #3d4b59;
+  --ai-input-bg: var(--bg-input);
+  --ai-input-focus-bg: #080f18;
+  --ai-overlay: rgba(0, 0, 0, 0.74);
+  --ai-scrollbar: rgba(151, 164, 180, 0.24);
+
+  --ai-err-text: var(--danger-text);
+  --ai-warn-text: var(--warn-text);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14.5px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* 彻底解决浏览器密码自动填充导致的白底/亮黄底 bug (Dark Mode 兼容) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-input) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+  box-shadow: 0 0 0 1000px var(--bg-input) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+  caret-color: var(--accent);
+}
+
+input,
+textarea {
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+/* 仅对按钮和链接保留微弱的键盘聚焦环 */
+button:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+::selection {
+  background: rgba(56, 189, 248, 0.28);
+}
+
+/* 页面、弹窗和浮层共享动效。只动 opacity/transform，避免触发布局抖动。 */
+@keyframes app-page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes app-dialog-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.975); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes app-pop-enter {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes app-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes app-loader-pulse {
+  0%, 100% { opacity: .38; transform: scaleX(.72); }
+  50% { opacity: 1; transform: scaleX(1); }
+}
+
+.app-page-enter {
+  animation: app-page-enter var(--duration-base) var(--ease-out) both;
+}
+
+.chat-msg--enter {
+  animation: app-page-enter var(--duration-slow) var(--ease-out) both;
+}
+
+.app-modal-enter-active,
+.app-modal-leave-active {
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.app-modal-leave-active {
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-in);
+}
+
+.app-modal-enter-active [data-dialog-surface],
+.app-modal-leave-active [data-dialog-surface] {
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+  transform-origin: center;
+  will-change: opacity, transform;
+}
+
+.app-modal-enter-from,
+.app-modal-leave-to {
+  opacity: 0;
+}
+
+.app-modal-enter-from [data-dialog-surface],
+.app-modal-leave-to [data-dialog-surface] {
+  opacity: 0;
+  transform: translateY(8px) scale(.975);
+}
+
+.route-view-enter-active,
+.route-view-leave-active {
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+.route-view-enter-from,
+.route-view-leave-to {
+  opacity: 0;
+}
+
+.row-menu,
+.resource-menu,
+.sidebar__project-menu,
+.sidebar__user-menu,
+.agent-pick__menu,
+.skill-pick__menu,
+.kb-pick__menu,
+.slash-menu {
+  transform-origin: top right;
+  animation: app-pop-enter var(--duration-fast) var(--ease-out) both;
+}
+
+.app-page-loader {
+  width: 100%;
+  min-height: 220px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 11px;
+  color: var(--text-tertiary);
+}
+
+.app-page-loader--fullscreen {
+  height: 100%;
+  min-height: 100%;
+  background: var(--bg);
+}
+
+.app-page-loader--compact { min-height: 160px; }
+.app-page-loader__spinner {
+  width: 21px;
+  height: 21px;
+  border: 2px solid var(--border-strong);
+  border-right-color: var(--accent);
+  border-radius: 50%;
+  animation: app-spin 800ms linear infinite;
+}
+.app-page-loader__label { font-size: 12.5px; }
+.app-page-loader__line {
+  width: 68px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--border);
+}
+.app-page-loader__line::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transform-origin: center;
+  animation: app-loader-pulse 1.2s var(--ease-standard) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ai-scrollbar);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

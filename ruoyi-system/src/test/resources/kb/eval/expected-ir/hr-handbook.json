@@ -1,0 +1,12 @@
+{
+  "docId": "hr-handbook",
+  "fileName": "hr-handbook.md",
+  "sourceType": "md",
+  "minBlocks": 8,
+  "requiredHeadings": ["星河科技员工手册", "年假政策", "报销流程", "试用期"],
+  "requiredSubstrings": ["15 天", "30 天", "2000 元", "3 个月"],
+  "requiredBlockTypes": ["heading", "paragraph"],
+  "requiredSourceLabels": [],
+  "minPageNumber": null,
+  "maxPageNumber": null
+}

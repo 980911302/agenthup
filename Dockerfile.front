@@ -1,0 +1,48 @@
+# 若依 AI 前端(desktop + 管理端)多阶段构建
+# Build context: 仓库根目录
+# 产物:desktop 在 /usr/share/nginx/html，管理端在 /admin。
+# 构建示例:
+#   docker build -f Dockerfile.front -t ruoyi-ai-frontend:latest .
+
+# ===== 阶段 1:构建 desktop（站点根路径） =====
+FROM node:20-alpine AS desktop-builder
+
+WORKDIR /build/desktop
+
+COPY desktop/package*.json ./
+RUN npm config set registry https://registry.npmmirror.com \
+    && npm config set fetch-retries 2 \
+    && npm config set fetch-retry-maxtimeout 60000 \
+    && npm ci --no-audit --no-fund
+
+COPY desktop/ ./
+RUN npm run build
+
+# ===== 阶段 2:构建管理端（/admin/） =====
+FROM node:20-alpine AS admin-builder
+
+WORKDIR /build/ruoyi-ui
+
+COPY ruoyi-ui/package*.json ./
+RUN npm config set registry https://registry.npmmirror.com \
+    && npm config set fetch-retries 2 \
+    && npm config set fetch-retry-maxtimeout 60000 \
+    && npm ci --no-audit --no-fund
+
+COPY ruoyi-ui/ ./
+RUN npm run build:prod
+
+# ===== 阶段 3:运行时 nginx =====
+# 部署时通过 volume 挂载 nginx.conf 覆盖 /etc/nginx/conf.d/default.conf
+FROM nginx:1.27-alpine
+
+LABEL maintainer="ruoyi-ai-agent"
+
+ENV TZ=Asia/Shanghai
+
+COPY --from=desktop-builder /build/desktop/dist /usr/share/nginx/html
+COPY --from=admin-builder /build/ruoyi-ui/dist /usr/share/nginx/html/admin
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

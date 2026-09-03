@@ -1,0 +1,63 @@
+# ============================================================================
+# 独立 MCP tool server(内置执行型工具)配置
+# 运行:  java -jar tool-mcp-server.jar
+# 文档:  tool-mcp-server/README.md(超时矩阵 / OPI 前置 / 已知坑)
+# ============================================================================
+server:
+  port: 8090
+  shutdown: graceful
+
+spring:
+  application:
+    name: agent-tool-server
+  main:
+    banner-mode: off
+  # 工具类零数据库零中间件,排除所有数据/缓存/定时自动配置
+  # (必须在 spring.autoconfigure.exclude,不是 spring.main.autoconfigure.exclude)。
+  # 注:exclude 列表只允许 classpath 上真实存在的类 —— 下列均来自
+  # ruoyi-system 传递依赖(pagehelper/redis),缺一启动即炸。
+  autoconfigure:
+    exclude:
+        - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+        - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+        - org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
+        - org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration
+        - org.mybatis.spring.boot.autoconfigure.MybatisLanguageDriverAutoConfiguration
+        - com.github.pagehelper.autoconfigure.PageHelperAutoConfiguration
+        - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+        - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+        - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+        - org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration
+        # 独立工具 server 无需任何鉴权:排除 spring-security,否则默认防护会把 /mcp 挡在 401
+        - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+        - org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration
+        - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+        # 工具类零定时任务,Quartz 空转(并拉高启动时 RAMJobStore + 线程池开销)
+        - org.springframework.boot.autoconfigure.quartz.QuartzAutoConfiguration
+
+ruoyi:
+  ai:
+    tool:
+      # 共享沙箱根。生产部署到独立节点时把它指向持久卷(与主应用 workspace-root 语义一致)。
+      workspace-root: ${TOOL_SERVER_WORKSPACE_ROOT:./agent-java/ai/workspace}
+      workspace-per-session: true
+      shell-enabled: true
+      shell-timeout-ms: 30000
+      # MCP 传输层配置(本模块独有,见 ToolServerProperties)
+      server:
+        endpoint: /mcp
+        # 进程类工具(bash/截图)并发上限:OPI 2G 内存经不起太多并发进程
+        max-concurrency: 4
+        # v1 无会话隔离:所有调用共享同一个工作区键,落到 {workspace-root}/{workspaceKey}
+        workspace-key: _shared
+        # 服务端单次调用超时,必须 ≥ bash 上限(600s)
+        request-timeout-seconds: 600
+        # SSE 保活心跳,压住链路上常见 60s 空闲超时
+        keep-alive-seconds: 30
+
+logging:
+  level:
+    root: info
+    com.ruoyi.toolmcpserver: info
+    com.ruoyi.system.tool: info
+    io.modelcontextprotocol: warn

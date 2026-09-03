@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiChatRunStepMapper">
+    <resultMap id="AiChatRunStepResult" type="com.ruoyi.system.domain.AiChatRunStep">
+        <id property="id" column="id"/>
+        <result property="runId" column="run_id"/>
+        <result property="sessionId" column="session_id"/>
+        <result property="stepId" column="step_id"/>
+        <result property="parentStepId" column="parent_step_id"/>
+        <result property="stepType" column="step_type"/>
+        <result property="status" column="status"/>
+        <result property="sortNo" column="sort_no"/>
+        <result property="name" column="name"/>
+        <result property="source" column="source"/>
+        <result property="confirmId" column="confirm_id"/>
+        <result property="inputData" column="input_data"/>
+        <result property="outputData" column="output_data"/>
+        <result property="outputDataPath" column="output_data_path"/>
+        <result property="attachments" column="attachments"/>
+        <result property="success" column="success"/>
+        <result property="durationMs" column="duration_ms"/>
+        <result property="lastEventSeq" column="last_event_seq"/>
+        <result property="messageId" column="message_id"/>
+        <result property="startedTime" column="started_time"/>
+        <result property="finishedTime" column="finished_time"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <insert id="upsert" parameterType="com.ruoyi.system.domain.AiChatRunStep">
+        insert into ai_chat_run_step
+        (run_id, session_id, step_id, parent_step_id, step_type, status, sort_no, name, source, confirm_id,
+         input_data, output_data, output_data_path, attachments, success, duration_ms, last_event_seq, message_id,
+         started_time, finished_time, create_time, update_time)
+        values
+        (#{runId}, #{sessionId}, #{stepId}, #{parentStepId}, #{stepType}, #{status}, #{sortNo}, #{name}, #{source}, #{confirmId},
+         #{inputData}, #{outputData}, #{outputDataPath}, #{attachments}, #{success}, #{durationMs}, #{lastEventSeq}, #{messageId},
+         #{startedTime}, #{finishedTime}, current_timestamp, current_timestamp)
+        on duplicate key update
+          parent_step_id = coalesce(values(parent_step_id), parent_step_id),
+          step_type = coalesce(values(step_type), step_type),
+          status = coalesce(values(status), status),
+          name = coalesce(values(name), name), source = coalesce(values(source), source),
+          confirm_id = coalesce(values(confirm_id), confirm_id),
+          input_data = coalesce(values(input_data), input_data),
+          output_data = coalesce(values(output_data), output_data),
+          output_data_path = coalesce(values(output_data_path), output_data_path),
+          attachments = coalesce(values(attachments), attachments),
+          success = coalesce(values(success), success), duration_ms = coalesce(values(duration_ms), duration_ms),
+          last_event_seq = greatest(last_event_seq, values(last_event_seq)),
+          message_id = coalesce(values(message_id), message_id),
+          started_time = coalesce(started_time, values(started_time)),
+          finished_time = coalesce(values(finished_time), finished_time), update_time = current_timestamp
+    </insert>
+
+    <update id="updateOutput">
+        update ai_chat_run_step set output_data = #{outputData},
+          last_event_seq = greatest(last_event_seq, #{lastEventSeq}), update_time = current_timestamp
+        where run_id = #{runId} and step_id = #{stepId}
+    </update>
+
+    <select id="selectByRunId" resultMap="AiChatRunStepResult">
+        select * from ai_chat_run_step where run_id = #{runId} order by sort_no asc, id asc
+    </select>
+
+    <update id="bindMessageId">
+        update ai_chat_run_step
+           set message_id = #{messageId}, update_time = current_timestamp
+         where run_id = #{runId} and step_id = #{stepId} and message_id is null
+    </update>
+
+    <update id="markOpenTerminal">
+        update ai_chat_run_step set status = #{status}, last_event_seq = greatest(last_event_seq, #{lastEventSeq}),
+          finished_time = current_timestamp, update_time = current_timestamp
+        where run_id = #{runId} and status in ('STREAMING', 'RUNNING', 'WAITING')
+    </update>
+
+    <delete id="deleteBySessionId">delete from ai_chat_run_step where session_id = #{sessionId}</delete>
+    <delete id="deleteByRunId">delete from ai_chat_run_step where run_id = #{runId}</delete>
+
+    <select id="countOpenConfirmByRunId" resultType="int">
+        select count(1) from ai_chat_run_step
+         where run_id = #{runId}
+           and status = 'WAITING'
+    </select>
+
+    <select id="selectOpenConfirmRunIds" resultType="string">
+        select distinct run_id from ai_chat_run_step
+         where run_id in
+        <foreach item="runId" collection="runIds" open="(" separator="," close=")">
+            #{runId}
+        </foreach>
+           and status = 'WAITING'
+    </select>
+
+    <select id="selectLatestOpenConfirm" resultMap="AiChatRunStepResult">
+        select * from ai_chat_run_step
+         where run_id = #{runId}
+           and status = 'WAITING'
+         order by id desc
+         limit 1
+    </select>
+
+    <update id="createTableForTest">
+        create table if not exists ai_chat_run_step (
+          id bigint auto_increment primary key, run_id varchar(64) not null, session_id varchar(64) not null,
+          step_id varchar(128) not null, parent_step_id varchar(128), step_type varchar(32) not null,
+          status varchar(24) not null, sort_no bigint not null, name varchar(200), source varchar(32), confirm_id varchar(64),
+          input_data clob, output_data clob, output_data_path varchar(512), attachments clob, success varchar(1), duration_ms bigint,
+          last_event_seq bigint default 0 not null, message_id bigint, started_time timestamp, finished_time timestamp,
+          create_time timestamp, update_time timestamp, unique(run_id, step_id))
+    </update>
+    <update id="dropTableForTest">drop table if exists ai_chat_run_step</update>
+</mapper>

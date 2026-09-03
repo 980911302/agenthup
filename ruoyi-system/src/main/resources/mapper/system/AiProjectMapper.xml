@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiProjectMapper">
+
+    <resultMap type="AiProject" id="AiProjectResult">
+        <result property="projectId"    column="project_id"     />
+        <result property="projectName"  column="project_name"   />
+        <result property="description"  column="description"    />
+        <result property="userId"       column="user_id"        />
+        <result property="sessionCount" column="session_count"  />
+        <result property="createBy"     column="create_by"      />
+        <result property="createTime"   column="create_time"    />
+        <result property="updateBy"     column="update_by"      />
+        <result property="updateTime"   column="update_time"    />
+        <result property="remark"       column="remark"         />
+    </resultMap>
+
+    <sql id="selectAiProjectVo">
+        select p.project_id, p.project_name, p.description, p.user_id,
+               p.create_by, p.create_time, p.update_by, p.update_time, p.remark,
+               (select count(1) from ai_chat_session s
+                 where s.project_id = p.project_id and s.del_flag = '0') as session_count
+        from ai_project p
+    </sql>
+
+    <select id="selectAiProjectById" parameterType="Long" resultMap="AiProjectResult">
+        <include refid="selectAiProjectVo"/>
+        where p.del_flag = '0' and p.project_id = #{projectId}
+    </select>
+
+    <select id="selectAiProjectList" parameterType="AiProject" resultMap="AiProjectResult">
+        <include refid="selectAiProjectVo"/>
+        <where>
+            p.del_flag = '0'
+            <if test="userId != null">
+                AND p.user_id = #{userId}
+            </if>
+            <if test="projectName != null and projectName != ''">
+                AND p.project_name like concat('%', #{projectName}, '%')
+            </if>
+        </where>
+        order by p.create_time desc
+    </select>
+
+    <insert id="insertAiProject" parameterType="AiProject" useGeneratedKeys="true" keyProperty="projectId">
+        insert into ai_project
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="projectName != null and projectName != ''">project_name,</if>
+            <if test="description != null">description,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="projectName != null and projectName != ''">#{projectName},</if>
+            <if test="description != null">#{description},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updateAiProject" parameterType="AiProject">
+        update ai_project
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="projectName != null and projectName != ''">project_name = #{projectName},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+        </trim>
+        update_time = sysdate()
+        where project_id = #{projectId}
+    </update>
+
+    <update id="deleteAiProjectById" parameterType="Long">
+        update ai_project set del_flag = '2' where project_id = #{projectId}
+    </update>
+
+    <select id="selectSessionIdsByProjectId" parameterType="Long" resultType="String">
+        select session_id from ai_chat_session
+        where project_id = #{projectId} and del_flag = '0'
+    </select>
+
+</mapper>

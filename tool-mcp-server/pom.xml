@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>ruoyi</artifactId>
+        <groupId>com.ruoyi</groupId>
+        <version>3.9.2</version>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>tool-mcp-server</artifactId>
+    <description>
+        内置「执行型」工具(bash / read / write / edit / grep / find / ls / captureScreenshot)
+        的独立可跑 MCP server。主应用作为 MCP client 消费时,工具名与内置完全一致,
+        隔离在主进程外(可部署到独立沙箱节点/OPI)。
+        详见 tool-mcp-server/README.md。
+    </description>
+
+    <dependencies>
+
+        <!-- 工具类本体(ShellTool / FileTools / ScreenshotToolCallback / ProjectPaths /
+             WorkspaceSandbox / WorkspaceChanges / AiToolProperties)都在 ruoyi-system,
+             零逻辑复制即可复用 → MCP 工具名/schema/输出文案天然与内置一致。 -->
+        <dependency>
+            <groupId>com.ruoyi</groupId>
+            <artifactId>ruoyi-system</artifactId>
+        </dependency>
+
+        <!-- Servlet 版 streamable HTTP 传输需要 embedded Tomcat + servlet API。
+             mcp-core 0.17 的 server SDK(HttpServletStreamableServerTransportProvider)
+             已由 ruoyi-system 的 spring-ai-starter-mcp-client 传递进 classpath,零新增。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludeDevtools>true</excludeDevtools>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+        <finalName>${project.artifactId}</finalName>
+    </build>
+
+</project>

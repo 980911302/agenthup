@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiChatSessionMapper">
+
+    <resultMap type="AiChatSession" id="AiChatSessionResult">
+        <result property="sessionId"      column="session_id"      />
+        <result property="title"          column="title"           />
+        <result property="sessionType"    column="session_type"    />
+        <result property="clientType"     column="client_type"     />
+        <result property="clientTools"    column="client_tools"    />
+        <result property="clientToolsVer" column="client_tools_ver"/>
+        <result property="sourceJobId"    column="source_job_id"   />
+        <result property="projectId"      column="project_id"      />
+        <result property="userId"         column="user_id"         />
+        <result property="status"        column="status"          />
+        <result property="totalTokens"   column="total_tokens"    />
+        <result property="promptTokens"  column="prompt_tokens"   />
+        <result property="completionTokens" column="completion_tokens" />
+        <result property="llmCallCount"  column="llm_call_count"  />
+        <result property="contextLength" column="context_length"   />
+        <result property="messageCount"  column="message_count"   />
+        <result property="createBy"      column="create_by"       />
+        <result property="createTime"    column="create_time"     />
+        <result property="updateBy"      column="update_by"       />
+        <result property="updateTime"    column="update_time"     />
+        <result property="remark"        column="remark"           />
+        <result property="userName"      column="user_name"       />
+        <result property="agentCount"    column="agent_count"     />
+        <result property="supervisorAgentId"   column="supervisor_agent_id"   />
+        <result property="supervisorAgentName" column="supervisor_agent_name" />
+        <result property="kbIds"               column="kb_ids"               />
+    </resultMap>
+
+    <resultMap type="com.ruoyi.system.domain.AiChatSessionAgent" id="AiChatSessionAgentResult">
+        <result property="id"              column="id"                />
+        <result property="sessionId"      column="session_id"        />
+        <result property="agentId"        column="agent_id"          />
+        <result property="role"           column="role"              />
+        <result property="tokensUsed"     column="tokens_used"       />
+        <result property="promptTokens"   column="prompt_tokens"     />
+        <result property="completionTokens" column="completion_tokens" />
+        <result property="llmCallCount"   column="llm_call_count"    />
+        <result property="turnCount"      column="turn_count"         />
+        <result property="firstActiveTime" column="first_active_time"/>
+        <result property="lastActiveTime"  column="last_active_time" />
+        <result property="createTime"     column="create_time"       />
+        <result property="agentName"      column="agent_name"        />
+        <result property="agentCode"      column="agent_code"        />
+        <result property="agentIcon"      column="icon"              />
+    </resultMap>
+
+    <sql id="selectAiChatSessionVo">
+        select s.session_id, s.title, s.session_type, s.client_type, s.client_tools, s.client_tools_ver,
+               s.source_job_id, s.project_id, s.user_id, s.status, s.total_tokens,
+               s.prompt_tokens, s.completion_tokens, s.llm_call_count, s.context_length, s.message_count,
+               s.create_by, s.create_time, s.update_by, s.update_time, s.remark,
+               u.nick_name as user_name,
+               (select count(1) from ai_chat_session_agent sa where sa.session_id = s.session_id) as agent_count,
+               <!-- 主智能体(supervisor)：前端切换会话时据此恢复智能体选择。
+                    一个会话理论上只有一个 supervisor(ensureSession 写入)，
+                    历史数据可能存在多条，取 id 最小的那条保证结果稳定。 -->
+               (select sa2.agent_id from ai_chat_session_agent sa2
+                 where sa2.session_id = s.session_id and sa2.role = 'supervisor'
+                 order by sa2.id asc limit 1) as supervisor_agent_id,
+               (select ag.agent_name from ai_chat_session_agent sa3
+                  left join ai_agent ag on ag.agent_id = sa3.agent_id
+                 where sa3.session_id = s.session_id and sa3.role = 'supervisor'
+                 order by sa3.id asc limit 1) as supervisor_agent_name,
+               <!-- 会话选中的知识库ID(逗号串)：前端切换会话时据此恢复知识库多选 -->
+               (select group_concat(sk.kb_id order by sk.sort) from ai_chat_session_kb sk
+                 where sk.session_id = s.session_id) as kb_ids
+        from ai_chat_session s
+        left join sys_user u on s.user_id = u.user_id
+    </sql>
+
+    <!-- ==================== ai_chat_session 主表 ==================== -->
+
+    <select id="selectAiChatSessionById" parameterType="String" resultMap="AiChatSessionResult">
+        <include refid="selectAiChatSessionVo"/>
+        where s.del_flag = '0' and s.session_id = #{sessionId}
+    </select>
+
+    <select id="selectOwnedProjectIdBySessionId" parameterType="String" resultType="Long">
+        select s.project_id
+          from ai_chat_session s
+          join ai_project p on p.project_id = s.project_id
+                           and p.del_flag = '0'
+                           and p.user_id = s.user_id
+         where s.del_flag = '0' and s.session_id = #{sessionId}
+         limit 1
+    </select>
+
+    <select id="selectOwnedSessionIdsByProjectId" parameterType="Long" resultType="String">
+        select s.session_id
+          from ai_chat_session s
+          join ai_project p on p.project_id = s.project_id
+                           and p.del_flag = '0'
+                           and p.user_id = s.user_id
+         where s.del_flag = '0'
+           and s.project_id = #{projectId}
+         order by s.create_time asc, s.session_id asc
+    </select>
+
+    <select id="selectAiChatSessionByIdForUpdate" parameterType="String" resultMap="AiChatSessionResult">
+        select session_id, title, session_type, client_type, client_tools, client_tools_ver,
+               source_job_id, project_id, user_id, status, total_tokens, prompt_tokens,
+               completion_tokens, llm_call_count, context_length, message_count, create_by, create_time,
+               update_by, update_time, remark
+          from ai_chat_session
+         where del_flag = '0' and session_id = #{sessionId}
+         for update
+    </select>
+
+    <select id="selectAiChatSessionList" parameterType="AiChatSession" resultMap="AiChatSessionResult">
+        <include refid="selectAiChatSessionVo"/>
+        <where>
+            s.del_flag = '0'
+            <if test="title != null and title != ''">
+                AND s.title like concat('%', #{title}, '%')
+            </if>
+            <if test="userId != null">
+                AND s.user_id = #{userId}
+            </if>
+            <if test="status != null and status != ''">
+                AND s.status = #{status}
+            </if>
+            <if test="sessionType != null and sessionType != ''">
+                AND s.session_type = #{sessionType}
+            </if>
+            <if test="sourceJobId != null">
+                AND s.source_job_id = #{sourceJobId}
+            </if>
+            <if test="projectId != null">
+                AND s.project_id = #{projectId}
+            </if>
+        </where>
+        order by s.create_time desc
+    </select>
+
+    <insert id="insertAiChatSession" parameterType="AiChatSession">
+        insert into ai_chat_session
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="sessionId != null and sessionId != ''">session_id,</if>
+            <if test="title != null and title != ''">title,</if>
+            <if test="sessionType != null and sessionType != ''">session_type,</if>
+            <if test="clientType != null and clientType != ''">client_type,</if>
+            <if test="clientTools != null">client_tools,</if>
+            <if test="clientToolsVer != null">client_tools_ver,</if>
+            <if test="sourceJobId != null">source_job_id,</if>
+            <if test="userId != null">user_id,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="totalTokens != null">total_tokens,</if>
+            <if test="contextLength != null">context_length,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="sessionId != null and sessionId != ''">#{sessionId},</if>
+            <if test="title != null and title != ''">#{title},</if>
+            <if test="sessionType != null and sessionType != ''">#{sessionType},</if>
+            <if test="clientType != null and clientType != ''">#{clientType},</if>
+            <if test="clientTools != null">#{clientTools},</if>
+            <if test="clientToolsVer != null">#{clientToolsVer},</if>
+            <if test="sourceJobId != null">#{sourceJobId},</if>
+            <if test="userId != null">#{userId},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="totalTokens != null">#{totalTokens},</if>
+            <if test="contextLength != null">#{contextLength},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <insert id="insertAiChatSessionIfAbsent" parameterType="AiChatSession">
+        insert ignore into ai_chat_session
+        (session_id, title, session_type, client_type, client_tools, client_tools_ver,
+         source_job_id, project_id, user_id, status, total_tokens, context_length, create_by, create_time)
+        values
+        (#{sessionId}, #{title},
+         ifnull(#{sessionType}, 'chat'), ifnull(#{clientType}, 'desktop'), #{clientTools}, #{clientToolsVer},
+         #{sourceJobId}, #{projectId},
+         #{userId}, #{status}, #{totalTokens}, #{contextLength},
+         #{createBy}, current_timestamp)
+    </insert>
+
+    <update id="updateAiChatSession" parameterType="AiChatSession">
+        update ai_chat_session
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="title != null">title = #{title},</if>
+            <if test="projectId != null">project_id = #{projectId},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="totalTokens != null">total_tokens = #{totalTokens},</if>
+            <if test="contextLength != null">context_length = #{contextLength},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </trim>
+        where session_id = #{sessionId}
+    </update>
+
+    <update id="updateClientDeclare" parameterType="AiChatSession">
+        update ai_chat_session
+           set client_type = #{clientType},
+               client_tools = #{clientTools},
+               client_tools_ver = #{clientToolsVer},
+               update_time = sysdate()
+         where session_id = #{sessionId}
+           and del_flag = '0'
+    </update>
+
+    <!-- 原子加：并发场景下多个 worker 同时累加 token 也不会丢 -->
+    <update id="addSessionTokens">
+        update ai_chat_session
+        set total_tokens = total_tokens + #{tokens},
+            context_length = context_length + #{contextLength},
+            update_time = sysdate()
+        where session_id = #{sessionId}
+    </update>
+
+    <update id="addSessionTokenDetail">
+        update ai_chat_session
+        set total_tokens = total_tokens + #{tokens},
+            prompt_tokens = ifnull(prompt_tokens, 0) + #{promptTokens},
+            completion_tokens = ifnull(completion_tokens, 0) + #{completionTokens},
+            llm_call_count = ifnull(llm_call_count, 0) + #{callCount},
+            context_length = context_length + #{contextLength},
+            update_time = sysdate()
+        where session_id = #{sessionId}
+    </update>
+
+    <!-- 消息条数原子加:每条消息落表时 +1,并发安全 -->
+    <update id="addSessionMessageCount">
+        update ai_chat_session
+        set message_count = ifnull(message_count, 0) + #{delta},
+            update_time = sysdate()
+        where session_id = #{sessionId}
+    </update>
+
+    <update id="reviveAiChatSession" parameterType="String">
+        update ai_chat_session
+           set del_flag = '0', status = '0', update_time = sysdate()
+         where session_id = #{sessionId} and del_flag = '2'
+    </update>
+
+    <delete id="deleteAiChatSessionById" parameterType="String">
+        update ai_chat_session set del_flag = '2' where session_id = #{sessionId}
+    </delete>
+
+    <delete id="deleteAiChatSessionByIds" parameterType="String">
+        update ai_chat_session set del_flag = '2' where session_id in
+        <foreach item="sessionId" collection="array" open="(" separator="," close=")">
+            #{sessionId}
+        </foreach>
+    </delete>
+
+    <!-- ==================== ai_chat_session_agent 关联表 ==================== -->
+
+    <select id="selectAgentsBySessionId" parameterType="String" resultMap="AiChatSessionAgentResult">
+        select sa.id, sa.session_id, sa.agent_id, sa.role, sa.tokens_used,
+               sa.prompt_tokens, sa.completion_tokens, sa.llm_call_count, sa.turn_count,
+               sa.first_active_time, sa.last_active_time, sa.create_time,
+               a.agent_name, a.agent_code, a.icon
+        from ai_chat_session_agent sa
+        left join ai_agent a on sa.agent_id = a.agent_id and a.del_flag = '0'
+        where sa.session_id = #{sessionId}
+        order by sa.first_active_time asc
+    </select>
+
+    <select id="selectSessionAgent" resultMap="AiChatSessionAgentResult">
+        select id, session_id, agent_id, role, tokens_used,
+               prompt_tokens, completion_tokens, llm_call_count, turn_count,
+               first_active_time, last_active_time, create_time
+        from ai_chat_session_agent
+        where session_id = #{sessionId} and agent_id = #{agentId}
+    </select>
+
+    <insert id="insertSessionAgent" parameterType="com.ruoyi.system.domain.AiChatSessionAgent" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_chat_session_agent
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            session_id, agent_id,
+            <if test="role != null and role != ''">role,</if>
+            <if test="tokensUsed != null">tokens_used,</if>
+            <if test="turnCount != null">turn_count,</if>
+            first_active_time, last_active_time,
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            #{sessionId}, #{agentId},
+            <if test="role != null and role != ''">#{role},</if>
+            <if test="tokensUsed != null">#{tokensUsed},</if>
+            <if test="turnCount != null">#{turnCount},</if>
+            sysdate(), sysdate(),
+            sysdate()
+        </trim>
+    </insert>
+
+    <!-- 原子加 + 轮数 +1 + 更新最后活动时间 -->
+    <update id="addAgentTokens">
+        update ai_chat_session_agent
+        set tokens_used = tokens_used + #{tokens},
+            turn_count = turn_count + 1,
+            last_active_time = sysdate()
+        where session_id = #{sessionId} and agent_id = #{agentId}
+    </update>
+
+    <update id="addAgentTokenDetail">
+        update ai_chat_session_agent
+        set tokens_used = tokens_used + #{tokens},
+            prompt_tokens = ifnull(prompt_tokens, 0) + #{promptTokens},
+            completion_tokens = ifnull(completion_tokens, 0) + #{completionTokens},
+            llm_call_count = ifnull(llm_call_count, 0) + #{callCount},
+            turn_count = turn_count + 1,
+            last_active_time = sysdate()
+        where session_id = #{sessionId} and agent_id = #{agentId}
+    </update>
+
+    <!--
+      会话内各智能体的累计消耗。主智能体钉在首位(它是"你自己这轮花的",与派出去的子 agent
+      不是同类项),其余按消耗降序。agent_name 走左连接:智能体被删后仍要能看到历史消耗。
+    -->
+    <select id="selectAgentSpendBySession" parameterType="String" resultType="map">
+        select sa.agent_id            as agentId,
+               ifnull(a.agent_name, concat('agent#', sa.agent_id)) as agentName,
+               sa.role                as role,
+               ifnull(sa.tokens_used, 0)        as tokens,
+               ifnull(sa.prompt_tokens, 0)      as promptTokens,
+               ifnull(sa.completion_tokens, 0)  as completionTokens,
+               ifnull(sa.llm_call_count, 0)     as callCount
+          from ai_chat_session_agent sa
+          left join ai_agent a on a.agent_id = sa.agent_id
+         where sa.session_id = #{sessionId}
+           and ifnull(sa.tokens_used, 0) > 0
+         order by (sa.role = 'supervisor') desc, sa.tokens_used desc
+    </select>
+
+    <delete id="deleteAgentsBySessionId" parameterType="String">
+        delete from ai_chat_session_agent where session_id = #{sessionId}
+    </delete>
+
+</mapper>

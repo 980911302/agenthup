@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.KbGraphRunMapper">
+
+    <resultMap type="KbGraphRun" id="KbGraphRunResult">
+        <result property="runId"             column="run_id" />
+        <result property="kbId"              column="kb_id" />
+        <result property="docId"             column="doc_id" />
+        <result property="generation"        column="generation" />
+        <result property="sourceContentHash" column="source_content_hash" />
+        <result property="parserVersion"     column="parser_version" />
+        <result property="chunkParamsHash"   column="chunk_params_hash" />
+        <result property="extractorVersion"  column="extractor_version" />
+        <result property="promptVersion"     column="prompt_version" />
+        <result property="modelCode"         column="model_code" />
+        <result property="status"            column="status" />
+        <result property="step"              column="step" />
+        <result property="errorType"         column="error_type" />
+        <result property="errorMsg"          column="error_msg" />
+        <result property="entityCount"       column="entity_count" />
+        <result property="relationCount"     column="relation_count" />
+        <result property="evidenceCount"     column="evidence_count" />
+        <result property="extractOutcome"    column="extract_outcome" />
+        <result property="startedAt"         column="started_at" />
+        <result property="finishedAt"        column="finished_at" />
+        <result property="createTime"        column="create_time" />
+    </resultMap>
+
+    <sql id="selectColumns">
+        run_id, kb_id, doc_id, generation, source_content_hash, parser_version,
+        chunk_params_hash, extractor_version, prompt_version, model_code,
+        status, step, error_type, error_msg, entity_count, relation_count,
+        evidence_count, extract_outcome, started_at, finished_at, create_time
+    </sql>
+
+    <select id="selectByRunId" parameterType="Long" resultMap="KbGraphRunResult">
+        select <include refid="selectColumns"/>
+          from kb_graph_run
+         where run_id = #{runId}
+    </select>
+
+    <select id="selectByDocId" parameterType="Long" resultMap="KbGraphRunResult">
+        select <include refid="selectColumns"/>
+          from kb_graph_run
+         where doc_id = #{docId}
+         order by generation desc, run_id desc
+    </select>
+
+    <select id="selectLatestByDocId" parameterType="Long" resultMap="KbGraphRunResult">
+        select <include refid="selectColumns"/>
+          from kb_graph_run
+         where doc_id = #{docId}
+         order by generation desc, run_id desc
+         limit 1
+    </select>
+
+    <insert id="insert" parameterType="KbGraphRun">
+        insert into kb_graph_run (
+            run_id, kb_id, doc_id, generation, source_content_hash, parser_version,
+            chunk_params_hash, extractor_version, prompt_version, model_code,
+            status, step, error_type, error_msg, entity_count, relation_count,
+            evidence_count, extract_outcome, started_at, finished_at, create_time
+        ) values (
+            #{runId}, #{kbId}, #{docId}, #{generation}, #{sourceContentHash}, #{parserVersion},
+            #{chunkParamsHash}, #{extractorVersion}, #{promptVersion}, #{modelCode},
+            #{status}, #{step}, #{errorType}, #{errorMsg}, #{entityCount}, #{relationCount},
+            #{evidenceCount}, #{extractOutcome}, #{startedAt}, #{finishedAt},
+            coalesce(#{createTime}, now())
+        )
+    </insert>
+
+    <update id="update" parameterType="KbGraphRun">
+        update kb_graph_run
+           set status = #{status},
+               step = #{step},
+               error_type = #{errorType},
+               error_msg = #{errorMsg},
+               entity_count = #{entityCount},
+               relation_count = #{relationCount},
+               evidence_count = #{evidenceCount},
+               extract_outcome = #{extractOutcome},
+               model_code = #{modelCode},
+               started_at = #{startedAt},
+               finished_at = #{finishedAt}
+         where run_id = #{runId}
+    </update>
+
+    <delete id="deleteByDocId" parameterType="Long">
+        delete from kb_graph_run where doc_id = #{docId}
+    </delete>
+
+    <delete id="deleteByKbId" parameterType="Long">
+        delete from kb_graph_run where kb_id = #{kbId}
+    </delete>
+</mapper>

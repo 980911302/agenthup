@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.KbDocGraphMapper">
+
+    <resultMap type="KbDocGraph" id="KbDocGraphResult">
+        <result property="docId"         column="doc_id"         />
+        <result property="kbId"          column="kb_id"          />
+        <result property="graphStatus"   column="graph_status"   />
+        <result property="graphStep"     column="graph_step"     />
+        <result property="progress"      column="progress"       />
+        <result property="chunkTotal"    column="chunk_total"    />
+        <result property="chunkDone"     column="chunk_done"     />
+        <result property="entityCount"   column="entity_count"   />
+        <result property="relationCount" column="relation_count" />
+        <result property="extractModel"  column="extract_model"  />
+        <result property="errorType"     column="error_type"     />
+        <result property="errorMsg"      column="error_msg"      />
+        <result property="startedAt"     column="started_at"     />
+        <result property="finishedAt"    column="finished_at"    />
+        <result property="activeRunId"   column="active_run_id"  />
+        <result property="generation"    column="generation"     />
+        <result property="graphVersion"  column="graph_version"  />
+        <result property="docName"       column="doc_name"       />
+    </resultMap>
+
+    <select id="selectByDocId" parameterType="Long" resultMap="KbDocGraphResult">
+        select doc_id, kb_id, graph_status, graph_step, progress, chunk_total, chunk_done,
+               entity_count, relation_count, extract_model, error_type, error_msg,
+               started_at, finished_at, active_run_id, generation, graph_version
+          from kb_doc_graph
+         where doc_id = #{docId}
+    </select>
+
+    <select id="selectByKbId" parameterType="Long" resultMap="KbDocGraphResult">
+        select g.doc_id, g.kb_id, g.graph_status, g.graph_step, g.progress, g.chunk_total,
+               g.chunk_done, g.entity_count, g.relation_count, g.extract_model,
+               g.error_type, g.error_msg, g.started_at, g.finished_at,
+               g.active_run_id, g.generation, g.graph_version, d.doc_name
+          from kb_doc_graph g
+          left join kb_document d on g.doc_id = d.doc_id and d.del_flag = '0'
+         where g.kb_id = #{kbId}
+         order by g.doc_id desc
+    </select>
+
+    <insert id="upsert" parameterType="KbDocGraph">
+        insert into kb_doc_graph (
+            doc_id, kb_id, graph_status, graph_step, progress, chunk_total, chunk_done,
+            entity_count, relation_count, extract_model, error_type, error_msg,
+            started_at, finished_at, active_run_id, generation, graph_version
+        ) values (
+            #{docId}, #{kbId}, #{graphStatus}, #{graphStep}, #{progress}, #{chunkTotal}, #{chunkDone},
+            #{entityCount}, #{relationCount}, #{extractModel}, #{errorType}, #{errorMsg},
+            #{startedAt}, #{finishedAt}, #{activeRunId}, #{generation}, #{graphVersion}
+        )
+        on conflict (doc_id) do update set
+            kb_id = excluded.kb_id,
+            graph_status = excluded.graph_status,
+            graph_step = excluded.graph_step,
+            progress = excluded.progress,
+            chunk_total = excluded.chunk_total,
+            chunk_done = excluded.chunk_done,
+            entity_count = excluded.entity_count,
+            relation_count = excluded.relation_count,
+            extract_model = excluded.extract_model,
+            error_type = excluded.error_type,
+            error_msg = excluded.error_msg,
+            started_at = excluded.started_at,
+            finished_at = excluded.finished_at,
+            active_run_id = excluded.active_run_id,
+            generation = excluded.generation,
+            graph_version = excluded.graph_version
+    </insert>
+
+    <update id="updateProgress" parameterType="KbDocGraph">
+        update kb_doc_graph
+           set graph_status = #{graphStatus},
+               graph_step = #{graphStep},
+               progress = #{progress},
+               chunk_total = #{chunkTotal},
+               chunk_done = #{chunkDone},
+               entity_count = #{entityCount},
+               relation_count = #{relationCount},
+               extract_model = #{extractModel},
+               error_type = #{errorType},
+               error_msg = #{errorMsg},
+               started_at = #{startedAt},
+               finished_at = #{finishedAt},
+               active_run_id = #{activeRunId},
+               generation = #{generation},
+               graph_version = #{graphVersion}
+         where doc_id = #{docId}
+    </update>
+
+    <delete id="deleteByDocId" parameterType="Long">
+        delete from kb_doc_graph where doc_id = #{docId}
+    </delete>
+
+    <delete id="deleteByKbId" parameterType="Long">
+        delete from kb_doc_graph where kb_id = #{kbId}
+    </delete>
+</mapper>

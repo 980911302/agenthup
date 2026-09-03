@@ -1,0 +1,84 @@
+######################################################################
+# Build Tools
+
+.gradle
+/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+######################################################################
+# IDE
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### JRebel ###
+rebel.xml
+
+### NetBeans ###
+nbproject/private/
+build/*
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+######################################################################
+# Local DB dumps / residual backups (never commit)
+sql/backup/
+
+######################################################################
+# Others
+*.log
+*.xml.versionsBackup
+*.swp
+
+!*/build/*.java
+!*/build/*.html
+!*/build/*.xml
+.DS_Store
+.superpowers/
+
+# Local worktrees
+.worktrees/
+agent-java/
+
+# 运行时上传目录(ruoyi.profile 的默认相对路径)
+uploadPath/
+
+# 桌面端本地开发配置与非项目包管理器锁文件
+desktop/.env.development
+
+# 浏览器插件本地依赖与构建产物
+extension/node_modules/
+extension/dist/
+
+# 本地对象存储凭据，绝不入库
+.env.minio.local
+
+# 服务端本地环境变量（以 .env.example 为模板创建）
+/.env
+
+# Claude Code 本地配置与工作树（launch.json 是共享的开发服务器配置，保留）
+.claude/settings.local.json
+.claude/worktrees/
+desktop/pnpm-lock.yaml
+extension/pnpm-lock.yaml
+
+# 本地 AI 工具工作目录
+.commandcode/
+.workbuddy/
+.zcode/

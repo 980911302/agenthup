@@ -1,0 +1,13 @@
+{
+  "docId": "product-guide",
+  "fileName": "product-guide.html",
+  "sourceType": "html",
+  "minBlocks": 6,
+  "requiredHeadings": ["Agent Hub 产品指南", "核心能力", "安装步骤"],
+  "requiredSubstrings": ["pgvector", "Neo4j", "agent-service", "企业版"],
+  "requiredBlockTypes": ["heading", "paragraph", "list_item"],
+  "requiredSourceLabels": [],
+  "forbiddenSubstrings": ["window.track"],
+  "minPageNumber": null,
+  "maxPageNumber": null
+}

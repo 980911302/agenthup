@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiJobMapper">
+
+    <resultMap type="AiJob" id="AiJobResult">
+        <result property="jobId"           column="job_id"           />
+        <result property="jobName"         column="job_name"         />
+        <result property="agentId"         column="agent_id"         />
+        <result property="prompt"          column="prompt"           />
+        <result property="attachments"     column="attachments"      />
+        <result property="triggerType"     column="trigger_type"     />
+        <result property="cronExpression"  column="cron_expression"  />
+        <result property="fireTime"        column="fire_time"        />
+        <result property="timezone"        column="timezone"         />
+        <result property="misfirePolicy"   column="misfire_policy"   />
+        <result property="sessionMode"     column="session_mode"     />
+        <result property="sessionId"       column="session_id"       />
+        <result property="timeoutSeconds"  column="timeout_seconds"  />
+        <result property="maxRetry"        column="max_retry"        />
+        <result property="maxRuns"         column="max_runs"         />
+        <result property="expireTime"      column="expire_time"      />
+        <result property="source"          column="source"           />
+        <result property="sourceRunId"     column="source_run_id"    />
+        <result property="ownerUserId"     column="owner_user_id"    />
+        <result property="status"          column="status"           />
+        <result property="prevFireTime"    column="prev_fire_time"   />
+        <result property="nextFireTime"    column="next_fire_time"   />
+        <result property="runCount"        column="run_count"        />
+        <result property="failCount"       column="fail_count"       />
+        <result property="lastRunId"       column="last_run_id"      />
+        <result property="lastStatus"      column="last_status"      />
+        <result property="createBy"        column="create_by"        />
+        <result property="createTime"      column="create_time"      />
+        <result property="updateBy"        column="update_by"        />
+        <result property="updateTime"      column="update_time"      />
+        <result property="remark"          column="remark"           />
+        <result property="delFlag"         column="del_flag"         />
+        <result property="agentName"       column="agent_name"       />
+        <result property="agentIcon"       column="agent_icon"       />
+        <result property="agentTheme"      column="agent_theme"      />
+        <result property="agentCode"       column="agent_code"       />
+        <result property="ownerName"       column="owner_name"       />
+    </resultMap>
+
+    <sql id="selectAiJobVo">
+        select j.job_id, j.job_name, j.agent_id, j.prompt, j.attachments,
+               j.trigger_type, j.cron_expression, j.fire_time, j.timezone, j.misfire_policy,
+               j.session_mode, j.session_id, j.timeout_seconds, j.max_retry, j.max_runs, j.expire_time,
+               j.source, j.source_run_id, j.owner_user_id, j.status,
+               j.prev_fire_time, j.next_fire_time, j.run_count, j.fail_count, j.last_run_id, j.last_status,
+               j.create_by, j.create_time, j.update_by, j.update_time, j.remark, j.del_flag,
+               a.agent_name as agent_name,
+               a.icon as agent_icon,
+               a.theme as agent_theme,
+               a.agent_code as agent_code,
+               u.nick_name as owner_name
+          from ai_job j
+          left join ai_agent a on a.agent_id = j.agent_id
+          left join sys_user u on u.user_id = j.owner_user_id
+    </sql>
+
+    <select id="selectAiJobById" parameterType="Long" resultMap="AiJobResult">
+        <include refid="selectAiJobVo"/>
+        where j.del_flag = '0' and j.job_id = #{jobId}
+    </select>
+
+    <select id="selectAiJobList" parameterType="AiJob" resultMap="AiJobResult">
+        <include refid="selectAiJobVo"/>
+        <where>
+            j.del_flag = '0'
+            <if test="jobName != null and jobName != ''">
+                AND j.job_name like concat('%', #{jobName}, '%')
+            </if>
+            <if test="agentId != null">
+                AND j.agent_id = #{agentId}
+            </if>
+            <if test="triggerType != null and triggerType != ''">
+                AND j.trigger_type = #{triggerType}
+            </if>
+            <if test="status != null and status != ''">
+                AND j.status = #{status}
+            </if>
+            <if test="source != null and source != ''">
+                AND j.source = #{source}
+            </if>
+            <if test="ownerUserId != null">
+                AND j.owner_user_id = #{ownerUserId}
+            </if>
+        </where>
+        order by j.job_id desc
+    </select>
+
+    <!-- 启动重建调度:仅未删除、状态正常、未过期 -->
+    <select id="selectSchedulableJobs" resultMap="AiJobResult">
+        <include refid="selectAiJobVo"/>
+        where j.del_flag = '0' and j.status = '0'
+          and (j.expire_time is null or j.expire_time &gt; sysdate())
+        order by j.job_id asc
+    </select>
+
+    <insert id="insertAiJob" parameterType="AiJob" useGeneratedKeys="true" keyProperty="jobId">
+        insert into ai_job
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="jobName != null and jobName != ''">job_name,</if>
+            <if test="agentId != null">agent_id,</if>
+            <if test="prompt != null">prompt,</if>
+            <if test="attachments != null">attachments,</if>
+            <if test="triggerType != null and triggerType != ''">trigger_type,</if>
+            <if test="cronExpression != null">cron_expression,</if>
+            <if test="fireTime != null">fire_time,</if>
+            <if test="timezone != null and timezone != ''">timezone,</if>
+            <if test="misfirePolicy != null and misfirePolicy != ''">misfire_policy,</if>
+            <if test="sessionMode != null and sessionMode != ''">session_mode,</if>
+            <if test="sessionId != null">session_id,</if>
+            <if test="timeoutSeconds != null">timeout_seconds,</if>
+            <if test="maxRetry != null">max_retry,</if>
+            <if test="maxRuns != null">max_runs,</if>
+            <if test="expireTime != null">expire_time,</if>
+            <if test="source != null and source != ''">source,</if>
+            <if test="sourceRunId != null">source_run_id,</if>
+            <if test="ownerUserId != null">owner_user_id,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="prevFireTime != null">prev_fire_time,</if>
+            <if test="nextFireTime != null">next_fire_time,</if>
+            <if test="runCount != null">run_count,</if>
+            <if test="failCount != null">fail_count,</if>
+            <if test="lastRunId != null">last_run_id,</if>
+            <if test="lastStatus != null">last_status,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="jobName != null and jobName != ''">#{jobName},</if>
+            <if test="agentId != null">#{agentId},</if>
+            <if test="prompt != null">#{prompt},</if>
+            <if test="attachments != null">#{attachments},</if>
+            <if test="triggerType != null and triggerType != ''">#{triggerType},</if>
+            <if test="cronExpression != null">#{cronExpression},</if>
+            <if test="fireTime != null">#{fireTime},</if>
+            <if test="timezone != null and timezone != ''">#{timezone},</if>
+            <if test="misfirePolicy != null and misfirePolicy != ''">#{misfirePolicy},</if>
+            <if test="sessionMode != null and sessionMode != ''">#{sessionMode},</if>
+            <if test="sessionId != null">#{sessionId},</if>
+            <if test="timeoutSeconds != null">#{timeoutSeconds},</if>
+            <if test="maxRetry != null">#{maxRetry},</if>
+            <if test="maxRuns != null">#{maxRuns},</if>
+            <if test="expireTime != null">#{expireTime},</if>
+            <if test="source != null and source != ''">#{source},</if>
+            <if test="sourceRunId != null">#{sourceRunId},</if>
+            <if test="ownerUserId != null">#{ownerUserId},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="prevFireTime != null">#{prevFireTime},</if>
+            <if test="nextFireTime != null">#{nextFireTime},</if>
+            <if test="runCount != null">#{runCount},</if>
+            <if test="failCount != null">#{failCount},</if>
+            <if test="lastRunId != null">#{lastRunId},</if>
+            <if test="lastStatus != null">#{lastStatus},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateAiJob" parameterType="AiJob">
+        update ai_job
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="jobName != null and jobName != ''">job_name = #{jobName},</if>
+            <if test="agentId != null">agent_id = #{agentId},</if>
+            <if test="prompt != null">prompt = #{prompt},</if>
+            <if test="attachments != null">attachments = #{attachments},</if>
+            <if test="triggerType != null and triggerType != ''">trigger_type = #{triggerType},</if>
+            <if test="cronExpression != null">cron_expression = #{cronExpression},</if>
+            <if test="fireTime != null">fire_time = #{fireTime},</if>
+            <if test="timezone != null and timezone != ''">timezone = #{timezone},</if>
+            <if test="misfirePolicy != null and misfirePolicy != ''">misfire_policy = #{misfirePolicy},</if>
+            <if test="sessionMode != null and sessionMode != ''">session_mode = #{sessionMode},</if>
+            <if test="sessionId != null">session_id = #{sessionId},</if>
+            <if test="timeoutSeconds != null">timeout_seconds = #{timeoutSeconds},</if>
+            <if test="maxRetry != null">max_retry = #{maxRetry},</if>
+            <if test="maxRuns != null">max_runs = #{maxRuns},</if>
+            <if test="expireTime != null">expire_time = #{expireTime},</if>
+            <if test="source != null and source != ''">source = #{source},</if>
+            <if test="sourceRunId != null">source_run_id = #{sourceRunId},</if>
+            <if test="ownerUserId != null">owner_user_id = #{ownerUserId},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="prevFireTime != null">prev_fire_time = #{prevFireTime},</if>
+            <if test="nextFireTime != null">next_fire_time = #{nextFireTime},</if>
+            <if test="runCount != null">run_count = #{runCount},</if>
+            <if test="failCount != null">fail_count = #{failCount},</if>
+            <if test="lastRunId != null">last_run_id = #{lastRunId},</if>
+            <if test="lastStatus != null">last_status = #{lastStatus},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </trim>
+        where job_id = #{jobId}
+    </update>
+
+    <delete id="deleteAiJobByIds" parameterType="Long">
+        update ai_job set del_flag = '2' where job_id in
+        <foreach item="jobId" collection="array" open="(" separator="," close=")">
+            #{jobId}
+        </foreach>
+    </delete>
+
+    <!-- 增量回写,避免整行 update 覆盖并发改的 prompt/status 等配置字段 -->
+    <!-- last_run_id / last_status 为 null 时 COALESCE 保留原值,避免 SKIPPED/FAILED 无 run 时抹掉上次 runId -->
+    <update id="updateFireSnapshot">
+        update ai_job
+           set prev_fire_time = #{prevFireTime},
+               next_fire_time = #{nextFireTime},
+               last_run_id    = COALESCE(#{lastRunId}, last_run_id),
+               last_status    = COALESCE(#{lastStatus}, last_status),
+               run_count      = run_count + 1,
+               fail_count     = fail_count + #{failIncrement}
+         where job_id = #{jobId}
+    </update>
+
+    <select id="countEnabledByOwner" resultType="int">
+        select count(1) from ai_job
+         where del_flag = '0' and status = '0' and owner_user_id = #{ownerUserId}
+    </select>
+
+    <update id="markCompleted">
+        update ai_job
+           set status = '2', update_time = sysdate()
+         where job_id = #{jobId} and del_flag = '0'
+    </update>
+
+</mapper>

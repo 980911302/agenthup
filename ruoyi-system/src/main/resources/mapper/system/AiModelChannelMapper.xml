@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiModelChannelMapper">
+
+    <resultMap type="AiModelChannel" id="AiModelChannelResult">
+        <result property="id"          column="id"            />
+        <result property="modelId"     column="model_id"      />
+        <result property="channelId"   column="channel_id"    />
+        <result property="modelName"   column="model_name"    />
+        <result property="inputPrice"  column="input_price"   />
+        <result property="outputPrice" column="output_price"  />
+        <result property="weight"      column="weight"        />
+        <result property="retryCount"  column="retry_count"   />
+        <result property="status"      column="status"        />
+        <result property="createBy"    column="create_by"     />
+        <result property="createTime"  column="create_time"   />
+        <result property="updateBy"    column="update_by"     />
+        <result property="updateTime"  column="update_time"   />
+        <result property="remark"      column="remark"        />
+        <result property="channelName" column="channel_name"  />
+        <result property="modelCode"   column="model_code"    />
+        <result property="displayName" column="display_name"  />
+    </resultMap>
+
+    <sql id="selectAiModelChannelVo">
+        select mc.id, mc.model_id, mc.channel_id, mc.model_name, mc.input_price, mc.output_price,
+               mc.weight, mc.retry_count, mc.status, mc.remark, mc.create_by, mc.create_time, mc.update_by, mc.update_time,
+               c.channel_name,
+               m.model_code, m.display_name
+        from ai_model_channel mc
+        left join ai_channel c on mc.channel_id = c.channel_id and c.del_flag = '0'
+        left join ai_model m on mc.model_id = m.model_id and m.del_flag = '0'
+    </sql>
+
+    <select id="selectAiModelChannelByPair" resultMap="AiModelChannelResult">
+        <include refid="selectAiModelChannelVo"/>
+        where mc.model_id = #{modelId} and mc.channel_id = #{channelId}
+        order by mc.id desc limit 1
+    </select>
+
+    <select id="selectAiModelChannelById" parameterType="Long" resultMap="AiModelChannelResult">
+        <include refid="selectAiModelChannelVo"/>
+        where mc.id = #{id}
+    </select>
+
+    <select id="selectAiModelChannelList" parameterType="AiModelChannel" resultMap="AiModelChannelResult">
+        <include refid="selectAiModelChannelVo"/>
+        <where>
+            <if test="modelId != null">
+                AND mc.model_id = #{modelId}
+            </if>
+            <if test="channelId != null">
+                AND mc.channel_id = #{channelId}
+            </if>
+            <if test="modelName != null and modelName != ''">
+                AND mc.model_name like concat('%', #{modelName}, '%')
+            </if>
+            <if test="channelName != null and channelName != ''">
+                AND c.channel_name like concat('%', #{channelName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND mc.status = #{status}
+            </if>
+        </where>
+        order by mc.id desc
+    </select>
+
+    <insert id="insertAiModelChannel" parameterType="AiModelChannel" useGeneratedKeys="true" keyProperty="id">
+        insert into ai_model_channel
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="modelId != null">model_id,</if>
+            <if test="channelId != null">channel_id,</if>
+            <if test="modelName != null and modelName != ''">model_name,</if>
+            <if test="inputPrice != null">input_price,</if>
+            <if test="outputPrice != null">output_price,</if>
+            <if test="weight != null">weight,</if>
+            <if test="retryCount != null">retry_count,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="modelId != null">#{modelId},</if>
+            <if test="channelId != null">#{channelId},</if>
+            <if test="modelName != null and modelName != ''">#{modelName},</if>
+            <if test="inputPrice != null">#{inputPrice},</if>
+            <if test="outputPrice != null">#{outputPrice},</if>
+            <if test="weight != null">#{weight},</if>
+            <if test="retryCount != null">#{retryCount},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateAiModelChannel" parameterType="AiModelChannel">
+        update ai_model_channel
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="modelId != null">model_id = #{modelId},</if>
+            <if test="channelId != null">channel_id = #{channelId},</if>
+            <if test="modelName != null and modelName != ''">model_name = #{modelName},</if>
+            <if test="inputPrice != null">input_price = #{inputPrice},</if>
+            <if test="outputPrice != null">output_price = #{outputPrice},</if>
+            <if test="weight != null">weight = #{weight},</if>
+            <if test="retryCount != null">retry_count = #{retryCount},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteAiModelChannelById" parameterType="Long">
+        delete from ai_model_channel where id = #{id}
+    </delete>
+
+    <delete id="deleteAiModelChannelByIds" parameterType="Long">
+        delete from ai_model_channel where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 物理删除某渠道的全部绑定(删除渠道时连带清理,避免悬空绑定). -->
+    <delete id="deleteByChannelIds">
+        <if test="channelIds != null and channelIds.size() > 0">
+            delete from ai_model_channel where channel_id in
+            <foreach item="channelId" collection="channelIds" open="(" separator="," close=")">
+                #{channelId}
+            </foreach>
+        </if>
+    </delete>
+
+    <!-- 物理删除某模型的全部绑定(删除模型时连带清理,避免悬空绑定). -->
+    <delete id="deleteByModelIds">
+        <if test="modelIds != null and modelIds.size() > 0">
+            delete from ai_model_channel where model_id in
+            <foreach item="modelId" collection="modelIds" open="(" separator="," close=")">
+                #{modelId}
+            </foreach>
+        </if>
+    </delete>
+
+</mapper>

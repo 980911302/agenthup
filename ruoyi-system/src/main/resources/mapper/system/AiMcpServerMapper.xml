@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiMcpServerMapper">
+
+    <resultMap type="AiMcpServer" id="AiMcpServerResult">
+        <result property="mcpServerId"      column="mcp_server_id"      />
+        <result property="serverName"       column="server_name"        />
+        <result property="serverCode"       column="server_code"        />
+        <result property="transport"        column="transport"          />
+        <result property="command"          column="command"            />
+        <result property="args"             column="args"               />
+        <result property="endpoint"         column="endpoint"           />
+        <result property="env"              column="env"                />
+        <result property="healthStatus"     column="health_status"      />
+        <result property="healthCheckTime"  column="health_check_time"  />
+        <result property="status"           column="status"             />
+        <result property="delFlag"          column="del_flag"           />
+        <result property="createBy"         column="create_by"          />
+        <result property="createTime"       column="create_time"        />
+        <result property="updateBy"         column="update_by"          />
+        <result property="updateTime"       column="update_time"        />
+        <result property="remark"           column="remark"             />
+    </resultMap>
+
+    <sql id="selectAiMcpServerVo">
+        select mcp_server_id, server_name, server_code, transport, command, args, endpoint, env,
+               health_status, health_check_time, status, del_flag,
+               create_by, create_time, update_by, update_time, remark
+        from ai_mcp_server
+    </sql>
+
+    <select id="selectAiMcpServerById" parameterType="Long" resultMap="AiMcpServerResult">
+        <include refid="selectAiMcpServerVo"/>
+        where del_flag = '0' and mcp_server_id = #{mcpServerId}
+    </select>
+
+    <select id="selectAiMcpServerList" parameterType="AiMcpServer" resultMap="AiMcpServerResult">
+        <include refid="selectAiMcpServerVo"/>
+        <where>
+            del_flag = '0'
+            <if test="serverName != null and serverName != ''">
+                AND server_name like concat('%', #{serverName}, '%')
+            </if>
+            <if test="serverCode != null and serverCode != ''">
+                AND server_code like concat('%', #{serverCode}, '%')
+            </if>
+            <if test="transport != null and transport != ''">
+                AND transport = #{transport}
+            </if>
+            <if test="healthStatus != null and healthStatus != ''">
+                AND health_status = #{healthStatus}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        order by mcp_server_id desc
+    </select>
+
+    <insert id="insertAiMcpServer" parameterType="AiMcpServer" useGeneratedKeys="true" keyProperty="mcpServerId">
+        insert into ai_mcp_server
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="serverName != null and serverName != ''">server_name,</if>
+            <if test="serverCode != null and serverCode != ''">server_code,</if>
+            <if test="transport != null and transport != ''">transport,</if>
+            <if test="command != null and command != ''">command,</if>
+            <if test="args != null and args != ''">args,</if>
+            <if test="endpoint != null and endpoint != ''">endpoint,</if>
+            <if test="env != null and env != ''">env,</if>
+            <if test="healthStatus != null and healthStatus != ''">health_status,</if>
+            <if test="healthCheckTime != null">health_check_time,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="serverName != null and serverName != ''">#{serverName},</if>
+            <if test="serverCode != null and serverCode != ''">#{serverCode},</if>
+            <if test="transport != null and transport != ''">#{transport},</if>
+            <if test="command != null and command != ''">#{command},</if>
+            <if test="args != null and args != ''">#{args},</if>
+            <if test="endpoint != null and endpoint != ''">#{endpoint},</if>
+            <if test="env != null and env != ''">#{env},</if>
+            <if test="healthStatus != null and healthStatus != ''">#{healthStatus},</if>
+            <if test="healthCheckTime != null">#{healthCheckTime},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        </trim>
+    </insert>
+
+    <update id="updateAiMcpServer" parameterType="AiMcpServer">
+        update ai_mcp_server
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="serverName != null and serverName != ''">server_name = #{serverName},</if>
+            <if test="serverCode != null and serverCode != ''">server_code = #{serverCode},</if>
+            <if test="transport != null and transport != ''">transport = #{transport},</if>
+            <if test="command != null">command = #{command},</if>
+            <if test="args != null">args = #{args},</if>
+            <if test="endpoint != null">endpoint = #{endpoint},</if>
+            <if test="env != null">env = #{env},</if>
+            <if test="healthStatus != null and healthStatus != ''">health_status = #{healthStatus},</if>
+            <if test="healthCheckTime != null">health_check_time = #{healthCheckTime},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </trim>
+        where mcp_server_id = #{mcpServerId}
+    </update>
+
+    <select id="selectAiMcpServerByCodeIncludeDeleted" parameterType="String" resultMap="AiMcpServerResult">
+        <include refid="selectAiMcpServerVo"/>
+        where server_code = #{serverCode}
+        order by mcp_server_id desc limit 1
+    </select>
+
+    <update id="reactivateAiMcpServer" parameterType="AiMcpServer">
+        update ai_mcp_server
+           set del_flag = '0',
+               status = '0',
+               server_name = #{serverName},
+               transport = #{transport},
+               command = #{command},
+               args = #{args},
+               endpoint = #{endpoint},
+               env = #{env},
+               health_status = #{healthStatus},
+               remark = #{remark},
+               update_by = #{updateBy},
+               update_time = sysdate()
+         where mcp_server_id = #{mcpServerId}
+    </update>
+
+    <!-- 保活探测回写:只动健康字段,避免覆盖用户正在编辑的配置 -->
+    <update id="updateHealthByServerCode">
+        update ai_mcp_server
+           set health_status = #{healthStatus},
+               health_check_time = #{healthCheckTime}
+         where del_flag = '0'
+           and server_code = #{serverCode}
+    </update>
+
+    <delete id="deleteAiMcpServerById" parameterType="Long">
+        delete from ai_mcp_server where mcp_server_id = #{mcpServerId}
+    </delete>
+
+    <delete id="deleteAiMcpServerByIds" parameterType="Long">
+        delete from ai_mcp_server where mcp_server_id in
+        <foreach item="mcpServerId" collection="array" open="(" separator="," close=")">
+            #{mcpServerId}
+        </foreach>
+    </delete>
+
+    <!--
+      MCP 健康聚合(首页)。与渠道口径一致:status 维度 + health_status 维度。
+    -->
+    <select id="selectMcpHealth" resultType="map">
+        select
+            count(1)                                                              as total,
+            sum(case when status = '0' and del_flag = '0' then 1 else 0 end)       as enabled,
+            sum(case when health_status = '1' and status = '0' and del_flag = '0' then 1 else 0 end) as healthy,
+            sum(case when health_status = '2' and status = '0' and del_flag = '0' then 1 else 0 end) as unhealthy,
+            sum(case when health_status = '0' and status = '0' and del_flag = '0' then 1 else 0 end) as unknown
+        from ai_mcp_server
+        where del_flag = '0'
+    </select>
+
+</mapper>

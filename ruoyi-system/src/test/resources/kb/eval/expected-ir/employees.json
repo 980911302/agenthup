@@ -1,0 +1,12 @@
+{
+  "docId": "employees",
+  "fileName": "employees.csv",
+  "sourceType": "csv",
+  "minBlocks": 4,
+  "requiredHeadings": [],
+  "requiredSubstrings": ["张伟", "技术研发中心", "赵敏", "Neo4j"],
+  "requiredBlockTypes": ["table_header", "table_row"],
+  "requiredSourceLabels": [],
+  "minPageNumber": null,
+  "maxPageNumber": null
+}

@@ -1,0 +1,402 @@
+/**
+ * AI 模块 - 2026 现代化卡片 UI 设计系统
+ * 设计语言: 柔和渐变 / 大圆角 / 层次阴影 / 微交互 / 呼吸感留白
+ */
+
+// ===== Design Tokens =====
+$ai-radius: 16px;
+$ai-radius-sm: 10px;
+$ai-radius-xs: 6px;
+$ai-shadow-sm: 0 1px 3px var(--ai-fill-2), 0 1px 2px var(--ai-fill-3);
+$ai-shadow-md: 0 4px 16px var(--ai-fill-3), 0 2px 6px var(--ai-fill-2);
+$ai-shadow-lg: 0 12px 40px var(--ai-border-3), 0 4px 12px var(--ai-fill-2);
+$ai-shadow-hover: 0 16px 48px rgba(99, 102, 241, 0.12), 0 6px 16px var(--ai-fill-3);
+$ai-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+$ai-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+$ai-gradient-soft: var(--ai-legacy-page);
+$ai-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+// ===== 页面容器 =====
+.ai-page {
+  padding: 24px;
+  background: var(--ai-legacy-page);
+  min-height: calc(100vh - 84px);
+}
+
+// ===== 搜索区域 =====
+.ai-search {
+  background: var(--ai-search-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--ai-surface-glass);
+  border-radius: $ai-radius;
+  padding: 20px 24px 8px;
+  margin-bottom: 20px;
+  box-shadow: $ai-shadow-sm;
+  transition: $ai-transition;
+
+  &:hover {
+    box-shadow: $ai-shadow-md;
+  }
+
+  :deep(.el-form-item) {
+    margin-bottom: 14px;
+  }
+
+  :deep(.el-input__wrapper),
+  :deep(.el-select .el-input__wrapper) {
+    border-radius: $ai-radius-xs;
+    box-shadow: 0 0 0 1px var(--ai-legacy-border) inset;
+    transition: $ai-transition;
+
+    &:hover {
+      box-shadow: 0 0 0 1px #c7d2fe inset;
+    }
+
+    &.is-focus {
+      box-shadow: 0 0 0 1px #818cf8 inset, 0 0 0 3px rgba(129, 140, 248, 0.1);
+    }
+  }
+
+  :deep(.el-button--primary) {
+    border-radius: $ai-radius-xs;
+    background: $ai-gradient;
+    border: none;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+    }
+  }
+
+  :deep(.el-button--default) {
+    border-radius: $ai-radius-xs;
+    border-color: var(--ai-legacy-border);
+
+    &:hover {
+      border-color: #c7d2fe;
+      color: #6366f1;
+    }
+  }
+}
+
+// ===== 工具栏 =====
+.ai-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+
+  :deep(.el-button) {
+    border-radius: $ai-radius-xs;
+    font-weight: 500;
+    transition: $ai-transition;
+
+    &:hover {
+      transform: translateY(-1px);
+    }
+  }
+
+  :deep(.el-button--primary) {
+    background: $ai-gradient;
+    border: none;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+
+    &:hover {
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+    }
+  }
+}
+
+// ===== 卡片网格 =====
+.ai-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  min-height: 200px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ===== 卡片 =====
+.ai-card {
+  position: relative;
+  background: var(--ai-legacy-card);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--ai-chip-bg);
+  border-radius: $ai-radius;
+  padding: 0;
+  box-shadow: $ai-shadow-md;
+  transition: $ai-transition;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: $ai-gradient;
+    opacity: 0;
+    transition: $ai-transition;
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: $ai-shadow-hover;
+    border-color: rgba(129, 140, 248, 0.2);
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  // 卡片头部
+  .ai-card__header {
+    padding: 18px 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ai-card__title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .ai-card__name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ai-legacy-name);
+    letter-spacing: -0.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .ai-card__code {
+    font-size: 12px;
+    color: var(--ai-legacy-muted);
+    font-family: $ai-font-mono;
+    background: var(--ai-legacy-soft);
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  // 卡片内容
+  .ai-card__body {
+    padding: 0 20px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ai-card__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .ai-card__label {
+    font-size: 13px;
+    color: var(--ai-legacy-muted);
+    flex-shrink: 0;
+    font-weight: 450;
+  }
+
+  .ai-card__value {
+    font-size: 13px;
+    color: var(--ai-legacy-value);
+    font-weight: 500;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ai-card__desc {
+    font-size: 13px;
+    color: var(--ai-legacy-desc);
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .ai-card__prompt {
+    font-size: 12px;
+    color: var(--ai-legacy-desc);
+    line-height: 1.6;
+    background: var(--ai-legacy-page);
+    padding: 10px 12px;
+    border-radius: $ai-radius-sm;
+    border: 1px solid var(--ai-legacy-border);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-family: $ai-font-mono;
+  }
+
+  // 卡片操作区
+  .ai-card__footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--ai-legacy-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: var(--ai-legacy-footer);
+
+    :deep(.el-button) {
+      border-radius: $ai-radius-xs;
+      padding: 6px 12px;
+      font-size: 13px;
+      transition: $ai-transition;
+
+      &:hover {
+        transform: translateY(-1px);
+      }
+    }
+  }
+
+  // 状态指示点
+  .ai-card__status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+
+    &.is-active {
+      background: #10b981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+    }
+
+    &.is-inactive {
+      background: #94a3b8;
+      box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+    }
+
+    &.is-error {
+      background: #ef4444;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+    }
+  }
+}
+
+// ===== Tag 美化 =====
+.ai-tag {
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border: none;
+}
+
+// ===== 弹窗/抽屉美化 =====
+.ai-dialog {
+  :deep(.el-dialog) {
+    border-radius: $ai-radius;
+    overflow: hidden;
+    box-shadow: $ai-shadow-lg;
+  }
+
+  :deep(.el-dialog__header) {
+    padding: 20px 24px 16px;
+    margin: 0;
+    border-bottom: 1px solid var(--ai-legacy-soft);
+    background: var(--ai-legacy-header);
+  }
+
+  :deep(.el-dialog__title) {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ai-legacy-name);
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 24px;
+  }
+
+  :deep(.el-dialog__footer) {
+    padding: 16px 24px 20px;
+    border-top: 1px solid var(--ai-legacy-soft);
+  }
+
+  :deep(.el-form-item__label) {
+    font-weight: 500;
+    color: #475569;
+  }
+
+  :deep(.el-input__wrapper),
+  :deep(.el-textarea__inner) {
+    border-radius: $ai-radius-xs;
+    transition: $ai-transition;
+  }
+
+  :deep(.el-input__wrapper:hover),
+  :deep(.el-textarea__inner:hover) {
+    box-shadow: 0 0 0 1px #c7d2fe inset;
+  }
+
+  :deep(.el-input__wrapper.is-focus),
+  :deep(.el-textarea__inner:focus) {
+    box-shadow: 0 0 0 1px #818cf8 inset, 0 0 0 3px rgba(129, 140, 248, 0.08);
+  }
+
+  :deep(.el-button--primary) {
+    background: $ai-gradient;
+    border: none;
+    border-radius: $ai-radius-xs;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+
+    &:hover {
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+      transform: translateY(-1px);
+    }
+  }
+
+  :deep(.el-button--default) {
+    border-radius: $ai-radius-xs;
+  }
+}
+
+// ===== 空状态 =====
+.ai-empty {
+  grid-column: 1 / -1;
+  padding: 60px 0;
+
+  :deep(.el-empty__description p) {
+    color: var(--ai-legacy-muted);
+    font-size: 14px;
+  }
+}
+
+// ===== 分页 =====
+.ai-pagination {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+// ===== 加载状态 =====
+.ai-loading {
+  position: relative;
+  min-height: 300px;
+}

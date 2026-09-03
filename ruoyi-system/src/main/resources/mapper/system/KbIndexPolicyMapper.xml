@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.KbIndexPolicyMapper">
+
+    <resultMap type="com.ruoyi.system.domain.KbIndexPolicyVersion" id="VersionResult">
+        <result property="versionId" column="version_id"/>
+        <result property="versionNo" column="version_no"/>
+        <result property="versionLabel" column="version_label"/>
+        <result property="status" column="status"/>
+        <result property="payloadJson" column="payload_json"/>
+        <result property="fingerprint" column="fingerprint"/>
+        <result property="checkReport" column="check_report"/>
+        <result property="publishedBy" column="published_by"/>
+        <result property="publishedAt" column="published_at"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <resultMap type="com.ruoyi.system.domain.KbIndexJob" id="JobResult">
+        <result property="jobId" column="job_id"/>
+        <result property="kbId" column="kb_id"/>
+        <result property="jobType" column="job_type"/>
+        <result property="fromVersionId" column="from_version_id"/>
+        <result property="toVersionId" column="to_version_id"/>
+        <result property="status" column="status"/>
+        <result property="progress" column="progress"/>
+        <result property="docTotal" column="doc_total"/>
+        <result property="docDone" column="doc_done"/>
+        <result property="errorMsg" column="error_msg"/>
+        <result property="impactJson" column="impact_json"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="startedAt" column="started_at"/>
+        <result property="finishedAt" column="finished_at"/>
+        <result property="kbName" column="kb_name"/>
+    </resultMap>
+
+    <select id="selectPolicyPointer" resultType="map">
+        select id, draft_payload_json as "draftPayloadJson",
+               published_version_id as "publishedVersionId",
+               max_concurrent_jobs as "maxConcurrentJobs",
+               update_by as "updateBy", update_time as "updateTime"
+          from kb_index_policy where id = 1
+    </select>
+
+    <insert id="upsertPolicyPointer">
+        insert into kb_index_policy (id, draft_payload_json, published_version_id, max_concurrent_jobs, update_by, update_time)
+        values (1, #{draftPayloadJson}, #{publishedVersionId}, coalesce(#{maxConcurrentJobs}, 2), #{updateBy}, current_timestamp)
+        on conflict (id) do update set
+            draft_payload_json = coalesce(excluded.draft_payload_json, kb_index_policy.draft_payload_json),
+            published_version_id = coalesce(excluded.published_version_id, kb_index_policy.published_version_id),
+            max_concurrent_jobs = coalesce(excluded.max_concurrent_jobs, kb_index_policy.max_concurrent_jobs),
+            update_by = excluded.update_by,
+            update_time = current_timestamp
+    </insert>
+
+    <select id="selectMaxVersionNo" resultType="int">
+        select coalesce(max(version_no), 0) from kb_index_policy_version
+    </select>
+
+    <insert id="insertVersion" useGeneratedKeys="true" keyProperty="versionId">
+        insert into kb_index_policy_version (
+            version_no, version_label, status, payload_json, fingerprint, check_report,
+            published_by, published_at, create_by, create_time, remark
+        ) values (
+            #{versionNo}, #{versionLabel}, #{status}, #{payloadJson}, #{fingerprint}, #{checkReport},
+            #{publishedBy}, #{publishedAt}, #{createBy}, current_timestamp, #{remark}
+        )
+    </insert>
+
+    <select id="selectVersionById" resultMap="VersionResult">
+        select * from kb_index_policy_version where version_id = #{versionId}
+    </select>
+
+    <select id="selectVersions" resultMap="VersionResult">
+        select * from kb_index_policy_version order by version_no desc limit #{limit}
+    </select>
+
+    <select id="selectPublishedVersion" resultMap="VersionResult">
+        select v.* from kb_index_policy p
+        join kb_index_policy_version v on v.version_id = p.published_version_id
+        where p.id = 1
+    </select>
+
+    <select id="countRunningJobs" resultType="int">
+        select count(*) from kb_index_job where status in ('PENDING','RUNNING')
+    </select>
+
+    <insert id="insertJob" useGeneratedKeys="true" keyProperty="jobId">
+        insert into kb_index_job (
+            kb_id, job_type, from_version_id, to_version_id, status, progress,
+            doc_total, doc_done, impact_json, create_by, create_time
+        ) values (
+            #{kbId}, #{jobType}, #{fromVersionId}, #{toVersionId}, #{status}, coalesce(#{progress},0),
+            coalesce(#{docTotal},0), coalesce(#{docDone},0), #{impactJson}, #{createBy}, current_timestamp
+        )
+    </insert>
+
+    <update id="updateJob">
+        update kb_index_job
+           set status = #{status},
+               progress = #{progress},
+               doc_total = #{docTotal},
+               doc_done = #{docDone},
+               error_msg = #{errorMsg},
+               impact_json = #{impactJson},
+               started_at = #{startedAt},
+               finished_at = #{finishedAt}
+         where job_id = #{jobId}
+    </update>
+
+    <select id="selectJobById" resultMap="JobResult">
+        select j.*, k.kb_name
+          from kb_index_job j
+          left join kb_knowledge k on k.kb_id = j.kb_id
+         where j.job_id = #{jobId}
+    </select>
+
+    <select id="selectJobsByKb" resultMap="JobResult">
+        select j.*, k.kb_name
+          from kb_index_job j
+          left join kb_knowledge k on k.kb_id = j.kb_id
+         where j.kb_id = #{kbId}
+         order by j.job_id desc
+         limit #{limit}
+    </select>
+
+    <select id="selectRecentJobs" resultMap="JobResult">
+        select j.*, k.kb_name
+          from kb_index_job j
+          left join kb_knowledge k on k.kb_id = j.kb_id
+         order by j.job_id desc
+         limit #{limit}
+    </select>
+
+    <update id="updateKbPolicyBinding">
+        update kb_knowledge
+           set active_policy_version_id = #{activeVersionId},
+               desired_policy_version_id = #{desiredVersionId},
+               previous_policy_version_id = #{previousVersionId},
+               index_state = #{indexState},
+               update_time = current_timestamp
+         where kb_id = #{kbId}
+    </update>
+
+    <update id="applyPolicySnapshotToKb">
+        update kb_knowledge
+           set embedding_model_code = #{embeddingModelCode},
+               extract_model_code = #{extractModelCode},
+               chunk_strategy = #{chunkStrategy},
+               chunk_size = #{chunkSize},
+               chunk_overlap = #{chunkOverlap},
+               graph_enabled = #{graphEnabled},
+               update_time = current_timestamp
+         where kb_id = #{kbId}
+    </update>
+
+    <select id="selectUpgradeCandidates" resultType="map">
+        select k.kb_id as "kbId", k.kb_name as "kbName",
+               k.active_policy_version_id as "activeVersionId",
+               k.index_state as "indexState",
+               k.status as "status"
+          from kb_knowledge k
+         where k.del_flag = '0'
+           and (
+                k.active_policy_version_id is distinct from #{publishedVersionId}
+                or k.active_policy_version_id is null
+           )
+         order by k.kb_id desc
+         limit 200
+    </select>
+</mapper>

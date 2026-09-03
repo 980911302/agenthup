@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.KbKnowledgeMapper">
+
+    <resultMap type="KbKnowledge" id="KbKnowledgeResult">
+        <result property="kbId"               column="kb_id"               />
+        <result property="kbName"             column="kb_name"             />
+        <result property="description"        column="description"         />
+        <result property="embeddingModelCode" column="embedding_model_code"/>
+        <result property="graphEnabled"       column="graph_enabled"       />
+        <result property="extractModelCode"   column="extract_model_code"  />
+        <result property="chunkStrategy"      column="chunk_strategy"      />
+        <result property="chunkSize"          column="chunk_size"          />
+        <result property="chunkOverlap"       column="chunk_overlap"       />
+        <result property="status"             column="status"              />
+        <result property="createUserId"       column="create_user_id"      />
+        <result property="ownerUserId"        column="owner_user_id"       />
+        <result property="visibility"         column="visibility"          />
+        <result property="activePolicyVersionId" column="active_policy_version_id"/>
+        <result property="desiredPolicyVersionId" column="desired_policy_version_id"/>
+        <result property="previousPolicyVersionId" column="previous_policy_version_id"/>
+        <result property="indexState"         column="index_state"         />
+        <result property="deptId"             column="dept_id"             />
+        <result property="delFlag"            column="del_flag"            />
+        <result property="createBy"           column="create_by"           />
+        <result property="createTime"         column="create_time"         />
+        <result property="updateBy"           column="update_by"           />
+        <result property="updateTime"         column="update_time"         />
+        <result property="remark"             column="remark"              />
+    </resultMap>
+
+    <sql id="selectKbKnowledgeVo">
+        select kb_id, kb_name, description, embedding_model_code, graph_enabled, extract_model_code,
+               chunk_strategy, chunk_size, chunk_overlap, status, create_user_id, owner_user_id, visibility,
+               active_policy_version_id, desired_policy_version_id, previous_policy_version_id, index_state,
+               dept_id, del_flag, create_by, create_time, update_by, update_time, remark
+        from kb_knowledge
+    </sql>
+
+    <select id="selectKbKnowledgeById" parameterType="Long" resultMap="KbKnowledgeResult">
+        <include refid="selectKbKnowledgeVo"/>
+        where del_flag = '0' and kb_id = #{kbId}
+    </select>
+
+    <select id="selectKbKnowledgeByIdForUpdate" parameterType="Long" resultMap="KbKnowledgeResult">
+        <include refid="selectKbKnowledgeVo"/>
+        where del_flag = '0' and kb_id = #{kbId}
+        for update
+    </select>
+
+    <sql id="kbAccessFilter">
+            <!-- 负责人 = coalesce(owner_user_id, create_user_id)；转移后不再用 create_user_id 额外放行。
+                 共享访问：ACL 成员 / 显式 DEPT 同部门 / ORG。空 visibility 按 PRIVATE 收紧；超管 accessAdmin=1 不限制。 -->
+            <if test="accessAdmin != null and accessAdmin == '0'">
+                AND (
+                    coalesce(k.owner_user_id, k.create_user_id) = #{accessUserId}
+                    OR k.visibility = 'ORG'
+                    OR (
+                        coalesce(k.visibility, 'PRIVATE') = 'DEPT'
+                        AND k.dept_id IS NOT NULL
+                        AND #{accessDeptId} IS NOT NULL
+                        AND k.dept_id = #{accessDeptId}
+                    )
+                    OR EXISTS (
+                        select 1 from kb_acl_member m
+                         where m.kb_id = k.kb_id
+                           and m.user_id = #{accessUserId}
+                           and upper(trim(m.role)) in ('VIEWER', 'EDITOR', 'QUALITY', 'OWNER')
+                    )
+                )
+                AND NOT (
+                    coalesce(k.owner_user_id, k.create_user_id) IS NULL
+                    AND k.dept_id IS NULL
+                    AND (k.visibility IS NULL OR k.visibility = 'PRIVATE' OR k.visibility = 'MEMBERS')
+                )
+            </if>
+    </sql>
+
+    <select id="selectKbKnowledgeList" parameterType="KbKnowledge" resultMap="KbKnowledgeResult">
+        <include refid="selectKbKnowledgeVo"/>
+        <where>
+            del_flag = '0'
+            <if test="kbName != null and kbName != ''">
+                AND kb_name like concat('%', #{kbName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="deptId != null">
+                AND dept_id = #{deptId}
+            </if>
+            <if test="accessAdmin != null and accessAdmin == '0'">
+                AND (
+                    coalesce(owner_user_id, create_user_id) = #{accessUserId}
+                    OR visibility = 'ORG'
+                    OR (
+                        coalesce(visibility, 'PRIVATE') = 'DEPT'
+                        AND dept_id IS NOT NULL
+                        AND #{accessDeptId} IS NOT NULL
+                        AND dept_id = #{accessDeptId}
+                    )
+                    OR EXISTS (
+                        select 1 from kb_acl_member m
+                         where m.kb_id = kb_knowledge.kb_id
+                           and m.user_id = #{accessUserId}
+                           and upper(trim(m.role)) in ('VIEWER', 'EDITOR', 'QUALITY', 'OWNER')
+                    )
+                )
+                AND NOT (
+                    coalesce(owner_user_id, create_user_id) IS NULL
+                    AND dept_id IS NULL
+                    AND (visibility IS NULL OR visibility = 'PRIVATE' OR visibility = 'MEMBERS')
+                )
+            </if>
+        </where>
+        order by kb_id desc
+    </select>
+
+    <!-- KB-PV2-02：工作台聚合（文档统计一次查出，避免 N+1） -->
+    <resultMap type="com.ruoyi.system.domain.vo.KbWorkbenchItem" id="KbWorkbenchResult">
+        <result property="kbId" column="kb_id"/>
+        <result property="kbName" column="kb_name"/>
+        <result property="description" column="description"/>
+        <result property="status" column="status"/>
+        <result property="createUserId" column="create_user_id"/>
+        <result property="ownerUserId" column="owner_user_id"/>
+        <result property="visibilityCode" column="visibility"/>
+        <result property="deptId" column="dept_id"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="docCount" column="doc_count"/>
+        <result property="processingCount" column="processing_count"/>
+        <result property="failedCount" column="failed_count"/>
+        <result property="readyCount" column="ready_count"/>
+        <result property="lastContentTime" column="last_content_time"/>
+    </resultMap>
+
+    <select id="selectWorkbenchList" parameterType="KbKnowledge" resultMap="KbWorkbenchResult">
+        select k.kb_id, k.kb_name, k.description, k.status, k.create_user_id, k.owner_user_id, k.visibility, k.dept_id,
+               k.create_by, k.create_time, k.update_time,
+               coalesce(d.doc_count, 0) as doc_count,
+               coalesce(d.processing_count, 0) as processing_count,
+               coalesce(d.failed_count, 0) as failed_count,
+               coalesce(d.ready_count, 0) as ready_count,
+               d.last_content_time
+          from kb_knowledge k
+          left join (
+                select kb_id,
+                       count(*) as doc_count,
+                       count(*) filter (where parse_status in ('PENDING','PARSING','CHUNKING','EMBEDDING','PROCESSING')) as processing_count,
+                       count(*) filter (where parse_status = 'FAILED') as failed_count,
+                       count(*) filter (where parse_status = 'COMPLETED') as ready_count,
+                       max(coalesce(update_time, create_time)) as last_content_time
+                  from kb_document
+                 where del_flag = '0'
+                 group by kb_id
+          ) d on d.kb_id = k.kb_id
+        <where>
+            k.del_flag = '0'
+            <if test="kbId != null">
+                AND k.kb_id = #{kbId}
+            </if>
+            <if test="kbName != null and kbName != ''">
+                AND (k.kb_name like concat('%', #{kbName}, '%')
+                  OR coalesce(k.description,'') like concat('%', #{kbName}, '%')
+                  OR coalesce(k.create_by,'') like concat('%', #{kbName}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND k.status = #{status}
+            </if>
+            <include refid="kbAccessFilter"/>
+        </where>
+        order by coalesce(d.last_content_time, k.update_time, k.create_time) desc nulls last, k.kb_id desc
+    </select>
+
+    <insert id="insertKbKnowledge" parameterType="KbKnowledge" useGeneratedKeys="true" keyProperty="kbId">
+        insert into kb_knowledge
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="kbName != null and kbName != ''">kb_name,</if>
+            <if test="description != null and description != ''">description,</if>
+            <if test="embeddingModelCode != null and embeddingModelCode != ''">embedding_model_code,</if>
+            <if test="graphEnabled != null and graphEnabled != ''">graph_enabled,</if>
+            <if test="extractModelCode != null and extractModelCode != ''">extract_model_code,</if>
+            <if test="chunkStrategy != null and chunkStrategy != ''">chunk_strategy,</if>
+            <if test="chunkSize != null">chunk_size,</if>
+            <if test="chunkOverlap != null">chunk_overlap,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="createUserId != null">create_user_id,</if>
+            <if test="ownerUserId != null">owner_user_id,</if>
+            <if test="visibility != null and visibility != ''">visibility,</if>
+            <if test="deptId != null">dept_id,</if>
+            <if test="remark != null and remark != ''">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="kbName != null and kbName != ''">#{kbName},</if>
+            <if test="description != null and description != ''">#{description},</if>
+            <if test="embeddingModelCode != null and embeddingModelCode != ''">#{embeddingModelCode},</if>
+            <if test="graphEnabled != null and graphEnabled != ''">#{graphEnabled},</if>
+            <if test="extractModelCode != null and extractModelCode != ''">#{extractModelCode},</if>
+            <if test="chunkStrategy != null and chunkStrategy != ''">#{chunkStrategy},</if>
+            <if test="chunkSize != null">#{chunkSize},</if>
+            <if test="chunkOverlap != null">#{chunkOverlap},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="createUserId != null">#{createUserId},</if>
+            <if test="ownerUserId != null">#{ownerUserId},</if>
+            <if test="visibility != null and visibility != ''">#{visibility},</if>
+            <if test="deptId != null">#{deptId},</if>
+            <if test="remark != null and remark != ''">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            now()
+        </trim>
+    </insert>
+
+    <update id="updateKbKnowledge" parameterType="KbKnowledge">
+        update kb_knowledge
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="kbName != null and kbName != ''">kb_name = #{kbName},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="embeddingModelCode != null">embedding_model_code = #{embeddingModelCode},</if>
+            <if test="graphEnabled != null">graph_enabled = #{graphEnabled},</if>
+            <if test="extractModelCode != null">extract_model_code = #{extractModelCode},</if>
+            <if test="chunkStrategy != null">chunk_strategy = #{chunkStrategy},</if>
+            <if test="chunkSize != null">chunk_size = #{chunkSize},</if>
+            <if test="chunkOverlap != null">chunk_overlap = #{chunkOverlap},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="ownerUserId != null">owner_user_id = #{ownerUserId},</if>
+            <if test="visibility != null and visibility != ''">visibility = #{visibility},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = now()
+        </trim>
+        where kb_id = #{kbId}
+    </update>
+
+    <delete id="deleteKbKnowledgeById" parameterType="Long">
+        update kb_knowledge set del_flag = '2' where kb_id = #{kbId}
+    </delete>
+
+    <delete id="deleteKbKnowledgeByIds" parameterType="Long">
+        update kb_knowledge set del_flag = '2' where kb_id in
+        <foreach item="kbId" collection="array" open="(" separator="," close=")">
+            #{kbId}
+        </foreach>
+    </delete>
+
+</mapper>

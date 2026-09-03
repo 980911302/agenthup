@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.AiChatSessionKbMapper">
+
+    <!-- 查询某会话选中的知识库ID，按 sort 升序 -->
+    <select id="selectKbIdsBySessionId" parameterType="String" resultType="long">
+        select kb_id
+          from ai_chat_session_kb
+         where session_id = #{sessionId}
+         order by sort asc, kb_id asc
+    </select>
+
+    <!-- 删除某会话的全部关联 -->
+    <delete id="deleteBySessionId" parameterType="String">
+        delete from ai_chat_session_kb where session_id = #{sessionId}
+    </delete>
+
+    <!-- 删除某知识库的全部会话关联 -->
+    <delete id="deleteByKbId" parameterType="Long">
+        delete from ai_chat_session_kb where kb_id = #{kbId}
+    </delete>
+
+    <!-- 批量插入：foreach index 即 sort(0 起，按前端选择顺序) -->
+    <insert id="batchInsert">
+        insert into ai_chat_session_kb (session_id, kb_id, sort, create_time) values
+        <foreach item="kbId" index="idx" collection="kbIds" separator=",">
+            (#{sessionId}, #{kbId}, #{idx}, sysdate())
+        </foreach>
+    </insert>
+
+</mapper>

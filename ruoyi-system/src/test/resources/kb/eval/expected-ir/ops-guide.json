@@ -1,0 +1,12 @@
+{
+  "docId": "ops-guide",
+  "fileName": "ops-guide.pdf",
+  "sourceType": "pdf",
+  "minBlocks": 2,
+  "requiredHeadings": [],
+  "requiredSubstrings": ["vector baseline", "graph rebuild", "rollback"],
+  "requiredBlockTypes": ["paragraph"],
+  "requiredSourceLabels": [],
+  "minPageNumber": 1,
+  "maxPageNumber": 2
+}

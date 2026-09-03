@@ -1,0 +1,176 @@
+# 项目相关配置
+ruoyi:
+  # 名称
+  name: RuoYi
+  # 版本
+  version: 3.9.2
+  # 版权年份
+  copyrightYear: 2026
+  # 文件路径:优先环境变量 RUOYI_PROFILE,避免提交本机绝对路径
+  # 示例 Windows: D:/ruoyi/uploadPath  Linux: /home/ruoyi/uploadPath
+  profile: ${RUOYI_PROFILE:./uploadPath}
+  # 获取ip地址开关
+  addressEnabled: false
+  # 验证码类型 math 数字计算 char 字符验证
+  captchaType: math
+  # AES 加密密钥(AES-256,32字节,Base64编码)，必须由部署环境提供。
+  encrypt:
+    key: ${RUOYI_ENCRYPT_KEY}
+  cors:
+    # 浏览器插件 origin。生产必须写成精确 chrome-extension://<id>，逗号分隔。
+    # 留空则放行 chrome-extension://*（开发期 unpacked 扩展 id 会变）。
+    extension-origins: ${CORS_EXTENSION_ORIGINS:}
+
+# 开发环境配置
+server:
+  # 服务器的HTTP端口，默认为8080
+  port: 8080
+  servlet:
+    # 应用的访问路径
+    context-path: /
+  tomcat:
+    # tomcat的URI编码
+    uri-encoding: UTF-8
+    # 连接数满后的排队数，默认为100
+    accept-count: 1000
+    threads:
+      # tomcat最大线程数，默认为200
+      max: 800
+      # Tomcat启动初始化的线程数，默认值10
+      min-spare: 100
+
+# 日志配置
+logging:
+  level:
+    com.ruoyi: debug
+    org.springframework: warn
+
+# 用户配置
+user:
+  password:
+    # 密码最大错误次数
+    maxRetryCount: 5
+    # 密码锁定时间（默认10分钟）
+    lockTime: 10
+
+# Spring配置
+spring:
+  # AI 相关配置全部拆到 application-ai.yml,避免本文件被 AI 配置淹没。
+  # 用 config.import 而不是 profile:它无条件加载,不依赖 profiles.active,
+  # 也就不会出现"换了个 profile 结果 AI 配置没了"。
+  config:
+    import: classpath:application-ai.yml
+  # 资源信息
+  messages:
+    # 国际化资源文件路径
+    basename: i18n/messages
+  profiles:
+    active: druid
+  # 文件上传
+  servlet:
+    multipart:
+      # 与 FileUploadUtils.DEFAULT_MAX_SIZE(50M) 对齐；过小会导致大 PDF 上传被 Tomcat 直接拒
+      max-file-size: 50MB
+      # 多文件批次请求体上限
+      max-request-size: 100MB
+  # 服务模块
+  devtools:
+    restart:
+      # 热部署开关
+      enabled: true
+  data:
+    # redis 配置
+    redis:
+      # 地址
+      host: 192.168.0.102
+      # 端口，默认为6379
+      port: 6379
+      # 数据库索引
+      database: 2
+      # 密码（由部署环境提供）
+      password: ${REDIS_PASSWORD}
+      # 连接超时时间
+      timeout: 10s
+      lettuce:
+        pool:
+          # 连接池中的最小空闲连接
+          min-idle: 0
+          # 连接池中的最大空闲连接
+          max-idle: 8
+          # 连接池的最大数据库连接数
+          max-active: 8
+          # #连接池最大阻塞等待时间（使用负值表示没有限制）
+          max-wait: -1ms
+
+# Keycloak OAuth2 / OpenID Connect 登录。启用前请先部署 Keycloak 并设置环境变量。
+# 回调地址须配置到 Keycloak Client：${OAUTH_BACKEND_URL}/login/oauth2/code/keycloak
+oauth:
+  login:
+    enabled: ${OAUTH_LOGIN_ENABLED:false}
+    frontend-url: ${OAUTH_FRONTEND_URL:http://localhost:80}
+    desktop-frontend-url: ${OAUTH_DESKTOP_FRONTEND_URL:http://localhost:5175}
+    backend-url: ${OAUTH_BACKEND_URL:http://localhost:8080}
+    # 关闭时，仅已写入 sys_user_oauth_account 的用户可登录；生产环境推荐保持关闭。
+    auto-register: ${OAUTH_AUTO_REGISTER:false}
+    # 仅 auto-register=true 时必填，需替换为“外部登录默认角色”的实际 role_id。
+    default-role-id: ${OAUTH_DEFAULT_ROLE_ID:}
+    # 仅 auto-register=true 时必填，需替换为“外部登录默认部门”的实际 dept_id。
+    default-dept-id: ${OAUTH_DEFAULT_DEPT_ID:}
+    keycloak:
+      issuer-uri: ${KEYCLOAK_ISSUER_URI:}
+      client-id: ${KEYCLOAK_CLIENT_ID:}
+      client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+
+# token配置
+token:
+  # 令牌自定义标识
+  header: Authorization
+  # 令牌密钥（由部署环境提供）
+  secret: ${TOKEN_SECRET}
+  # 令牌有效期（默认30分钟）
+  expireTime: 30
+
+# MyBatis配置
+mybatis:
+  # 搜索指定包别名
+  typeAliasesPackage: com.ruoyi.**.domain
+  # 配置mapper的扫描，找到所有的mapper.xml映射文件
+  mapperLocations: classpath*:mapper/**/*Mapper.xml
+  # 加载全局的配置文件
+  configLocation: classpath:mybatis/mybatis-config.xml
+
+# PageHelper分页插件(多数据源按连接自动判方言,勿写死 mysql)
+pagehelper:
+  autoRuntimeDialect: true
+  supportMethodsArguments: true
+  params: count=countSql
+
+# Springdoc配置
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+  group-configs:
+    - group: 'default'
+      display-name: '测试模块'
+      paths-to-match: '/**'
+      packages-to-scan: com.ruoyi.web.controller.tool
+
+# 防盗链配置
+referer:
+  # 防盗链开关
+  enabled: false
+  # 允许的域名列表
+  allowed-domains: localhost,127.0.0.1,ruoyi.vip,www.ruoyi.vip
+
+# 防止XSS攻击
+xss:
+  # 过滤开关
+  enabled: true
+  # 排除链接（多个用逗号分隔）
+  excludes: /system/notice
+  # 匹配链接
+  urlPatterns: /system/*,/monitor/*,/tool/*
