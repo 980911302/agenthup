@@ -1,11 +1,11 @@
 // 若依 AI Agent 自动部署 Jenkinsfile
-// 流程:容器内 git pull(Jenkins 凭据拉 cnb) → SSH 到宿主机 → 宿主机脚本
+// 流程:容器内从 GitHub 拉代码 → SSH 到宿主机 → 宿主机脚本
 //       拉代码 → 用 Docker 跑 maven/node 容器构建 → docker build 镜像 → docker compose up 部署
 
 pipeline {
     agent any
 
-    // Poll SCM:每小时查一次 cnb 仓库,仅在有新 commit 时触发构建。
+    // Poll SCM:每小时查一次 GitHub 仓库,仅在有新 commit 时触发构建。
     // 注意:不要在这里删工作区(见 post),否则 Poll SCM 因"工作目录不存在"
     // 无法比较上次构建 revision,会把每次轮询都误判为"有变更"而重复部署。
     triggers {
@@ -28,11 +28,14 @@ pipeline {
         DEPLOY_USER = 'zhanglinlin'
         // 宿主机上的构建部署脚本
         DEPLOY_SCRIPT = '/Users/zhanglinlin/ruoyi-ai-deploy/build-and-deploy.sh'
+        // 由 Jenkins 注入宿主机构建脚本，避免脚本内写死代码仓库或分支。
+        GIT_REPO_URL = 'https://github.com/980911302/agenthup.git'
+        GIT_BRANCH = 'main'
     }
 
     stages {
         // ========================================
-        // Stage 1:拉代码(Jenkins 用 cnb 凭据从 cnb.cool 拉)
+        // Stage 1:拉代码(Jenkins 按任务 SCM 配置从 GitHub 拉)
         // ========================================
         stage('Checkout') {
             steps {
@@ -76,8 +79,7 @@ pipeline {
             steps {
                 script {
                     // 宿主机 SSH 密码(用 sshpass 走免交互)
-                    // cnb token 不通过 SSH 传:build-and-deploy.sh 自己从本机 Jenkins 容器读
-                    // (.cnb-token 文件由 init.groovy.d + withCredentials 维护在容器内)
+                    // 仓库地址和分支通过环境变量传给宿主机脚本，部署端不保存 Git 凭据。
                     withCredentials([
                         usernamePassword(
                             credentialsId: 'jenkins-host-ssh',
@@ -90,7 +92,7 @@ pipeline {
                             echo "=== SSH 到宿主机执行构建部署脚本 ==="
                             sshpass -p "$HOST_PASS" ssh -o StrictHostKeyChecking=no \
                                 "$HOST_USER@host.docker.internal" \
-                                'bash /Users/zhanglinlin/ruoyi-ai-deploy/build-and-deploy.sh 2>&1'
+                                "GIT_REPO_URL='$GIT_REPO_URL' GIT_BRANCH='$GIT_BRANCH' bash '$DEPLOY_SCRIPT' 2>&1"
                         '''
                     }
                 }
