@@ -66,6 +66,8 @@ public class LlmCallCollector
     private final long startMs = System.currentTimeMillis();
     private final Date turnStart = new Date(startMs);
     private long lastBoundaryMs = startMs;
+    /** 本轮 LLM 流的真实起点(onLlmCallStarted 打点);0 = 调用方没打点,退回 lastBoundaryMs */
+    private long llmStartedAtMs;
 
     private int callSeq = 0;
     private PendingCall pending;
@@ -92,8 +94,10 @@ public class LlmCallCollector
     private int prevCumPrompt;
     private int prevCumCompletion;
     private int prevCumTotal;
-    /** 本 collector 认为上游是累计式;prompt 负差值视为累计链重置(重置基准继续差值),
-     *  仅「prompt 涨而 completion 跌」才判定真·非累计上游并整轮关闭差值(见 flushPending) */
+    /** 本 collector 认为上游是累计式;prompt 负差值视为累计链重置(重置基准继续差值)。
+     *  翻成 false 有两条证据(见 flushPending):①探针实测 raw == 当次请求真实 prompt(硬证据,
+     *  自建工具循环下 Spring AI 不再累计,走的就是这条);②「prompt 涨而 completion 跌」(旧启发式,
+     *  探针缺席时兜底)。只信启发式会漏判 —— completion 一路变大时它永远不触发。 */
     private boolean cumulativeUpstream = true;
 
     /** 可选:装了才推实时 token;不装则完全维持现有行为 */
@@ -177,6 +181,8 @@ public class LlmCallCollector
      */
     public void onLlmCallStarted()
     {
+        // 本轮流的真实起点。必须打在 trace 守卫之前:duration 记账不依赖 trace 是否开启。
+        llmStartedAtMs = System.currentTimeMillis();
         if (traceRecorder == null || runId == null || sessionId == null)
         {
             return;
@@ -186,7 +192,12 @@ public class LlmCallCollector
         {
             Long prev = currentLlmSpanId;
             currentLlmSpanId = null;
-            traceRecorder.finish(prev, AiTraceSpan.STATUS_SUCCEEDED, null);
+            // 已被在途 pending 认领的 span 不能在这里收:它还在等自己那轮的 usage,
+            // 由 flushPending 补完 tokens 再收尾。收早了 tokens 就落不进去。
+            if (pending == null || !prev.equals(pending.spanId))
+            {
+                traceRecorder.finish(prev, AiTraceSpan.STATUS_SUCCEEDED, null);
+            }
         }
         Long spanId = traceRecorder.start(runId, sessionId, AiTraceSpan.TYPE_LLM,
                 parentSpanId, span -> {
@@ -270,6 +281,8 @@ public class LlmCallCollector
                     pending.responseId = responseId;
                 }
                 applyCache(pending, prompt, cachedTokens);
+                // 同一轮里 usage 可能多次下发,结束时刻取最后一次
+                pending.endedAtMs = System.currentTimeMillis();
                 // 同轮内 usage 刷新时也同步最新 prompt(通常不变,防御即可)
                 notifyToolBudgetPromptTokens(currentRealPrompt(prompt));
                 return;
@@ -290,7 +303,14 @@ public class LlmCallCollector
         pending.modelName = modelName != null && !modelName.isEmpty() ? modelName : configModelName;
         pending.responseId = responseId;
         pending.usageSource = SOURCE_REAL;
-        pending.startedAtMs = lastBoundaryMs;
+        // usage 落在流的末包,所以「收到 usage」就是这一轮真正结束的时刻;起点取
+        // onLlmCallStarted 的打点。旧实现拿 lastBoundaryMs(上一次 flush 的时刻)当起点,
+        // 而 flush 是被**下一轮**的 usage 触发的 —— 于是第 N 行记的是第 N+1 轮的耗时,
+        // 一轮工具循环的最后一行只剩 flush 的尾巴(线上实测 35ms)。
+        pending.startedAtMs = llmStartedAtMs > 0 ? llmStartedAtMs : lastBoundaryMs;
+        pending.endedAtMs = System.currentTimeMillis();
+        // 认领本轮的 llm span,flush 时按这个 id 收尾(见 flushPending 尾部)
+        pending.spanId = currentLlmSpanId;
         applyCache(pending, prompt, cachedTokens);
         // 喂当次真实 prompt 大小(完整上下文),供 ToolBudget 按 token 预算判定
         int realPrompt = currentRealPrompt(prompt);
@@ -487,6 +507,7 @@ public class LlmCallCollector
             pending.modelName = lastModelName != null ? lastModelName : configModelName;
             pending.usageSource = SOURCE_ESTIMATED;
             pending.startedAtMs = startMs;
+            pending.endedAtMs = System.currentTimeMillis();
             anyEstimated = true;
             flushPending();
             log.warn("LLM usage 缺失，已落估算 session={} agent={} total={}",
@@ -570,6 +591,29 @@ public class LlmCallCollector
         }
         long now = System.currentTimeMillis();
 
+        // 探针抓的是这一次 HTTP 请求的原始读数,hit+miss 就是上游为本次请求真实计费的
+        // prompt_tokens。必须在差值记账之前取走:它是判定「上游到底累不累计」的硬证据。
+        int[] cache = null;
+        if (cacheUsageProbe != null && pending.responseId != null && !pending.responseId.isEmpty())
+        {
+            cache = cacheUsageProbe.take(pending.responseId);
+        }
+        int probePrompt = cache == null ? 0 : Math.max(0, cache[0]) + Math.max(0, cache[1]);
+        // 非累计上游的硬判定。原来唯一的反证是「prompt 涨而 completion 跌」,可工具循环里
+        // completion 常常一路变大(思考变长、工具入参变大),反证永远不触发,于是每轮都被
+        // 当成累计值做差 —— 落库只剩「本轮新增」。线上实测:一个 8 次调用的会话真实 prompt
+        // 79793,落库只记了 39995(少一半);同源的 currentRealPrompt 喂给 ToolBudget 的
+        // 窗口占用也跟着缩水几十倍,token 预算闸门等于失效。
+        // 累计式上游的 raw 必然大于当次请求的 prompt(至少多出第一轮),所以 raw 与探针读数
+        // 相等只可能是非累计。首轮(prevCumPrompt==0)raw 本来就等于当次值,不带信息,跳过。
+        if (cumulativeUpstream && prevCumPrompt > 0 && probePrompt > 0
+                && probePrompt == pending.promptTokens)
+        {
+            log.info("LLM usage 判定为非累计上游(探针实测) session={} agent={} seq={} raw={} prevCum={}",
+                    sessionId, agentId, pending.callSeq, pending.promptTokens, prevCumPrompt);
+            cumulativeUpstream = false;
+        }
+
         // 上游给的是累计值,落库记本次增量。负差值要区分两种语义:
         //  - prompt 跌:累计链中途重置(Spring AI 流式工具循环重开累计,实测:raw 从 85928
         //    掉回 21732 后继续累计)。本轮 raw 就是当次完整上下文,重置基准后**保持差值模式** ——
@@ -625,7 +669,8 @@ public class LlmCallCollector
         row.setCompletionTokens(deltaCompletion);
         row.setTotalTokens(deltaTotal);
         row.setUsageSource(pending.usageSource);
-        row.setDurationMs(Math.max(0, now - pending.startedAtMs));
+        row.setDurationMs(Math.max(0L,
+                (pending.endedAtMs > 0 ? pending.endedAtMs : now) - pending.startedAtMs));
         // take 必须用全长 responseId;truncate 只用于落库列宽
         row.setResponseId(truncate(pending.responseId, 64));
         row.setCreateTime(new Date());
@@ -635,14 +680,10 @@ public class LlmCallCollector
         // 展示层用 CacheTokens.effectiveHit 与 prompt 对齐。
         int cacheHit = pending.cacheHitTokens;
         int cacheMiss = pending.cacheMissTokens;
-        if (cacheUsageProbe != null && pending.responseId != null && !pending.responseId.isEmpty())
+        if (cache != null)
         {
-            int[] cache = cacheUsageProbe.take(pending.responseId);
-            if (cache != null)
-            {
-                cacheHit = Math.max(0, cache[0]);
-                cacheMiss = Math.max(0, cache[1]);
-            }
+            cacheHit = Math.max(0, cache[0]);
+            cacheMiss = Math.max(0, cache[1]);
         }
         row.setCacheHitTokens(cacheHit);
         row.setCacheMissTokens(cacheMiss);
@@ -690,6 +731,8 @@ public class LlmCallCollector
         {
             lastModelName = row.getModelName();
         }
+        final Long flushedSpanId = pending.spanId;
+        final long flushedEndedAtMs = pending.endedAtMs;
         flushed.add(row);
         lastBoundaryMs = now;
         pending = null;
@@ -699,8 +742,15 @@ public class LlmCallCollector
         if (traceRecorder != null && runId != null && sessionId != null)
         {
             final AiLlmCall fRow = row;
-            Long spanId = currentLlmSpanId;
-            currentLlmSpanId = null;
+            // 认领自己那一轮的 span。直接用 currentLlmSpanId 会张冠李戴:flush 由下一轮的
+            // usage 触发,那时 onLlmCallStarted 早把 currentLlmSpanId 换成下一轮的了 ——
+            // 线上 trace 表里每个 llm span 都背着上一轮的 tokens、末尾还挂一个零宽幻影 span。
+            Long spanId = flushedSpanId;
+            if (spanId == null)
+            {
+                spanId = currentLlmSpanId;
+                currentLlmSpanId = null;
+            }
             if (spanId == null)
             {
                 spanId = traceRecorder.start(runId, sessionId, AiTraceSpan.TYPE_LLM,
@@ -711,8 +761,10 @@ public class LlmCallCollector
                             span.setCallSeq(fRow.getCallSeq());
                             span.setDepth(depth);
                         });
+                // 现场补开的才更新父候选;正常路径 onLlmCallStarted 已经把 lastLlmSpanId
+                // 指向当前那一轮了,这里再赋值会把它拨回上一轮,工具 span 就挂错父。
+                lastLlmSpanId = spanId;
             }
-            lastLlmSpanId = spanId;
             if (spanId != null)
             {
                 traceRecorder.finish(spanId, AiTraceSpan.STATUS_SUCCEEDED, span -> {
@@ -724,6 +776,11 @@ public class LlmCallCollector
                     span.setCacheMissTokens(fRow.getCacheMissTokens());
                     span.setUsageSource(fRow.getUsageSource());
                     span.setDurationMs(fRow.getDurationMs());
+                    // finish 默认盖当前时间,但这一轮其实早结束了(flush 被下一轮触发)
+                    if (flushedEndedAtMs > 0)
+                    {
+                        span.setFinishedAt(new Date(flushedEndedAtMs));
+                    }
                 });
             }
         }
@@ -817,6 +874,10 @@ public class LlmCallCollector
         String responseId;
         String usageSource = SOURCE_REAL;
         long startedAtMs;
+        /** 收到本轮 usage 的时刻 = 这一轮流真正结束的时刻 */
+        long endedAtMs;
+        /** 本轮自己的 llm span,flush 时按它收尾(不能用 currentLlmSpanId,那已是下一轮的) */
+        Long spanId;
         int cacheHitTokens;
         int cacheMissTokens;
     }

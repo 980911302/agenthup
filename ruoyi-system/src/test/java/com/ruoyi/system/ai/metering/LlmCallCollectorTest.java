@@ -283,6 +283,115 @@ class LlmCallCollectorTest
                 () -> c.onResponse(responseWithUsage(400, 40, 440, "tool_calls", "m"))); // round 4 > 硬顶 3
     }
 
+    @Test
+    void probeProvesNonCumulative_stopsDiffingEvenWhenCompletionKeepsGrowing()
+    {
+        // 线上真实形态(会话 29dc90a4,deepseek-v4-flash-ga):自建工具循环下上游每轮给的是
+        // 「本轮自己的」usage,prompt 因为历史变长而单调递增、completion 也因为思考变长和
+        // 工具入参变大而单调递增 —— 旧的「prompt 涨而 completion 跌」反证永远不触发,
+        // 于是每轮都被当成累计值做差,落库只剩本轮新增(8494/151/595/1735,真实 37354)。
+        // 探针给的 hit+miss 就是当次请求的真实 prompt,拿它做硬判定。
+        CacheUsageProbe probe = new CacheUsageProbe();
+        probe.record("r1", 0, 8494);
+        probe.record("r2", 8192, 453);
+        probe.record("r3", 8192, 1048);
+        probe.record("r4", 8192, 2783);
+        LlmCallCollector c = new LlmCallCollector("s1", 10L, "s1:10", 100L, "m", 0,
+                mapper, estimator, probe);
+
+        c.onResponse(usageWithId(8494, 144, 8638, "tool_calls", "m", "r1"));
+        c.onResponse(usageWithId(8645, 217, 8862, "tool_calls", "m", "r2"));
+        c.onResponse(usageWithId(9240, 619, 9859, "tool_calls", "m", "r3"));
+        c.onResponse(usageWithId(10975, 2803, 13778, "stop", "m", "r4"));
+        LlmCallCollector.TurnUsage turn = c.onComplete("p", "r");
+
+        ArgumentCaptor<AiLlmCall> cap = ArgumentCaptor.forClass(AiLlmCall.class);
+        verify(mapper, times(4)).insertLlmCall(cap.capture());
+        List<AiLlmCall> rows = cap.getAllValues();
+        // 每行都是当次请求的完整 prompt,不是「本轮新增」
+        assertEquals(8494, rows.get(0).getPromptTokens());
+        assertEquals(8645, rows.get(1).getPromptTokens());
+        assertEquals(9240, rows.get(2).getPromptTokens());
+        assertEquals(10975, rows.get(3).getPromptTokens());
+        assertEquals(2803, rows.get(3).getCompletionTokens());
+        assertEquals(37354, turn.promptTokens());
+        // 缓存列仍按探针原值落库(块量化绝对值,不做差值)
+        assertEquals(8192, rows.get(1).getCacheHitTokens());
+        assertEquals(453, rows.get(1).getCacheMissTokens());
+        // hit+miss 恒等于该行的真实 prompt —— 命中率的正确分母
+        for (AiLlmCall row : rows)
+        {
+            assertEquals(row.getPromptTokens().intValue(),
+                    row.getCacheHitTokens() + row.getCacheMissTokens());
+        }
+    }
+
+    @Test
+    void probeAgreesWithCumulativeUpstream_keepsDiffing()
+    {
+        // 反向保护:上游确实累计时(raw 300 而当次请求只有 200),探针读数与 raw 不等,
+        // 不能误判成非累计 —— 否则累计 raw 会被原样落库,把 32K 上下文算成 203K 幻影。
+        CacheUsageProbe probe = new CacheUsageProbe();
+        probe.record("c1", 0, 100);
+        probe.record("c2", 64, 136);
+        probe.record("c3", 128, 172);
+        LlmCallCollector c = new LlmCallCollector("s1", 10L, "s1:10", 100L, "m", 0,
+                mapper, estimator, probe);
+
+        c.onResponse(usageWithId(100, 20, 120, "tool_calls", "m", "c1"));
+        c.onResponse(usageWithId(300, 50, 350, "tool_calls", "m", "c2"));
+        c.onResponse(usageWithId(600, 90, 690, "stop", "m", "c3"));
+        c.onComplete("p", "r");
+
+        ArgumentCaptor<AiLlmCall> cap = ArgumentCaptor.forClass(AiLlmCall.class);
+        verify(mapper, times(3)).insertLlmCall(cap.capture());
+        List<AiLlmCall> rows = cap.getAllValues();
+        assertEquals(100, rows.get(0).getPromptTokens());
+        assertEquals(200, rows.get(1).getPromptTokens());
+        assertEquals(300, rows.get(2).getPromptTokens());
+    }
+
+    @Test
+    void durationMs_measuresOwnRoundNotTheNextOne() throws Exception
+    {
+        // 旧实现拿 lastBoundaryMs(上一次 flush 的时刻)当起点,而 flush 由**下一轮**的
+        // usage 触发 —— 第 N 行记成第 N+1 轮的耗时(含工具批次),末轮只剩 flush 的尾巴。
+        // 线上 trace 表实测:一个 7.2s 的轮次记成 40565ms,末轮记成 35ms。
+        collector.onLlmCallStarted();
+        Thread.sleep(80);                 // 第 1 轮流
+        collector.onResponse(responseWithUsage(100, 20, 120, "tool_calls", "m"));
+        Thread.sleep(300);                // 工具批次,不该算进第 1 轮
+        collector.onLlmCallStarted();
+        Thread.sleep(80);                 // 第 2 轮流
+        collector.onResponse(responseWithUsage(200, 30, 230, "stop", "m"));
+        collector.onComplete("p", "r");
+
+        ArgumentCaptor<AiLlmCall> cap = ArgumentCaptor.forClass(AiLlmCall.class);
+        verify(mapper, times(2)).insertLlmCall(cap.capture());
+        List<AiLlmCall> rows = cap.getAllValues();
+        long d1 = rows.get(0).getDurationMs();
+        long d2 = rows.get(1).getDurationMs();
+        // 修复前 d1 ≈ 80+300+80 = 460(串到了下一轮),d2 ≈ 0(只剩 flush 尾巴)
+        assertTrue(d1 >= 40 && d1 < 250, "第 1 轮耗时应只覆盖自己那段流,实际 " + d1);
+        assertTrue(d2 >= 40 && d2 < 250, "末轮耗时不该只剩 flush 尾巴,实际 " + d2);
+    }
+
+    private static ChatResponse usageWithId(int prompt, int completion, int total,
+                                            String finishReason, String model, String id)
+    {
+        DefaultUsage usage = new DefaultUsage(prompt, completion, total);
+        ChatResponseMetadata meta = ChatResponseMetadata.builder()
+                .id(id)
+                .model(model)
+                .usage(usage)
+                .build();
+        ChatGenerationMetadata genMeta = finishReason != null
+                ? ChatGenerationMetadata.builder().finishReason(finishReason).build()
+                : ChatGenerationMetadata.NULL;
+        Generation gen = new Generation(new AssistantMessage(""), genMeta);
+        return new ChatResponse(List.of(gen), meta);
+    }
+
     private static ChatResponse responseWithUsage(int prompt, int completion, int total,
                                                   String finishReason, String model)
     {
