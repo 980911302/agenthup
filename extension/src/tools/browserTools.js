@@ -332,7 +332,7 @@ export function registerBrowserTools() {
         scale: { type: 'number', description: '缩放 0.1–1，默认 0.5' }
       }
     }
-  }, async (args) => {
+  }, async (args, context) => {
     const tab = await tabById(args?.tabId)
     await chrome.tabs.update(tab.id, { active: true })
     try { await chrome.windows.update(tab.windowId, { focused: true }) } catch (_) { /* 无焦点权限仍截 */ }
