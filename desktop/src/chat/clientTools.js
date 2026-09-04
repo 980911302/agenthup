@@ -86,24 +86,8 @@ export async function handleToolCallRequest(runId, event) {
   if (inFlight.has(callId)) return
   inFlight.add(callId)
   try {
-    const entry = name ? registry.get(name) : null
-    if (!entry) {
-      await sendResult(runId, callId, false, null, '本端没有名为 ' + (name || '?') + ' 的客户端工具')
-      return
-    }
-    let args = {}
-    try {
-      args = event.args ? JSON.parse(event.args) : {}
-    } catch (_) {
-      args = {}
-    }
-    try {
-      const raw = await Promise.resolve(entry.handler(args))
-      const result = raw == null ? '' : (typeof raw === 'string' ? raw : JSON.stringify(raw))
-      await sendResult(runId, callId, true, result, null)
-    } catch (e) {
-      await sendResult(runId, callId, false, null, e?.message || String(e))
-    }
+    const outcome = await runHandler(name, event)
+    await sendResult(runId, callId, outcome)
   } finally {
     if (inFlight.size > 200) {
       const first = inFlight.values().next().value
@@ -112,9 +96,51 @@ export async function handleToolCallRequest(runId, event) {
   }
 }
 
-async function sendResult(runId, callId, ok, result, error) {
+/** 跑一次本地 handler，把成功与失败都收敛成可回传的 outcome。 */
+async function runHandler(name, event) {
+  const entry = name ? registry.get(name) : null
+  if (!entry) {
+    return { ok: false, error: '本端没有名为 ' + (name || '?') + ' 的客户端工具' }
+  }
+  let args = {}
   try {
-    await chatRpc.request('chat.tool.result', { runId, callId, ok, result, error })
+    args = event.args ? JSON.parse(event.args) : {}
+  } catch (_) {
+    args = {}
+  }
+  try {
+    // 第二个参数只供客户端 handler 使用，不会混进模型生成的工具入参。
+    const raw = await Promise.resolve(entry.handler(args, {
+      sessionId: event.sessionId || null
+    }))
+    // 截图等工具回工作区路径引用；图片本体不走 WebSocket，服务端按当前工作区读取。
+    // mediaFileId 继续兼容旧版本客户端。
+    const hasMedia = raw && typeof raw === 'object' && !Array.isArray(raw)
+      && ('workspacePath' in raw || 'mediaFileId' in raw)
+    const payload = hasMedia ? raw.text : raw
+    const mediaFileId = hasMedia && raw.mediaFileId != null ? Number(raw.mediaFileId) : null
+    const workspacePath = hasMedia && typeof raw.workspacePath === 'string'
+      ? raw.workspacePath : null
+    const result = payload == null ? '' : (typeof payload === 'string' ? payload : JSON.stringify(payload))
+    return { ok: true, result, mediaFileId, workspacePath }
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) }
+  }
+}
+
+async function sendResult(runId, callId, outcome) {
+  const mediaFileId = outcome?.mediaFileId
+  const workspacePath = outcome?.workspacePath
+  try {
+    await chatRpc.request('chat.tool.result', {
+      runId,
+      callId,
+      ok: !!outcome?.ok,
+      result: outcome?.result ?? null,
+      error: outcome?.error ?? null,
+      ...(Number.isFinite(mediaFileId) ? { mediaFileId } : {}),
+      ...(workspacePath ? { workspacePath } : {})
+    })
   } catch (e) {
     console.warn('回传客户端工具结果失败', e)
   }

@@ -143,7 +143,7 @@ WebSocket 协议为 JSON-RPC 2.0,方法:`chat.ping` / `chat.run.create` / `chat.
 |---|---|---|
 | GET | `/{sessionId}/tree` | 目录树(深度 ≤5、节点 ≤500) |
 | GET | `/{sessionId}/file?path=` | 读取单个文本文件(≤200KB,防路径穿越) |
-| POST | `/{sessionId}/upload` | 上传文件到 `uploads/` 子目录(FormData `file`),返回 `{name,path,mime,size}` |
+| POST | `/{sessionId}/upload` | 上传文件(FormData `file`,`source=user|ai`);用户文件进 `uploads/`，AI 产物进 `outputs/`，返回 `{name,path,mime,size}` |
 | DELETE | `/{sessionId}` | 清空整个会话工作区 |
 | GET | `/{sessionId}/download?path=` | 单文件下载(带 token 的 URL) |
 | GET | `/{sessionId}/download-zip?path=` | 目录打包下载,path 缺省为整个工作区 |

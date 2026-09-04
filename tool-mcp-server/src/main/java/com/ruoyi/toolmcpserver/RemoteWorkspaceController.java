@@ -224,9 +224,10 @@ public class RemoteWorkspaceController
         return AjaxResult.success("工作区已清空");
     }
 
-    /** 上传到 uploads/(同名自动加序号,只新增不覆盖) */
+    /** 用户上传进 uploads/，AI/渠道工具产物进 outputs/；同名自动加序号，只新增不覆盖。 */
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public AjaxResult upload(@RequestParam String workspaceKey,
+                             @RequestParam(required = false, defaultValue = "user") String source,
                              @RequestParam("file") MultipartFile file) throws IOException
     {
         if (file == null || file.isEmpty())
@@ -238,7 +239,8 @@ public class RemoteWorkspaceController
             throw new ServiceException("文件超过 " + (WorkspaceTreeWalker.MAX_UPLOAD_BYTES / 1024 / 1024) + "MB 上限");
         }
         Path root = WorkspaceSandbox.resolveRoot(props, workspaceKey, true);
-        Path uploadDir = root.resolve(WorkspaceTreeWalker.UPLOAD_DIR);
+        String directory = WorkspaceTreeWalker.uploadDirectory(source);
+        Path uploadDir = root.resolve(directory);
         Files.createDirectories(uploadDir);
 
         String safeName = WorkspaceTreeWalker.sanitizeFileName(file.getOriginalFilename());
@@ -249,7 +251,7 @@ public class RemoteWorkspaceController
         }
         file.transferTo(target);
 
-        String relPath = WorkspaceTreeWalker.UPLOAD_DIR + "/" + target.getFileName();
+        String relPath = directory + "/" + target.getFileName();
         Map<String, Object> data = new HashMap<>();
         data.put("name", target.getFileName().toString());
         data.put("path", relPath);

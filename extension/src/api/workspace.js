@@ -19,11 +19,13 @@ export function getWorkspaceFile(sessionId, path, projectId) {
 }
 
 /**
- * 上传文件到会话工作区的 uploads/ 目录
+ * 上传文件到会话工作区。
+ * source=user(默认) 进入 uploads/；source=ai 进入 outputs/。
  */
-export function uploadWorkspaceFile(sessionId, file, onProgress, projectId) {
+export function uploadWorkspaceFile(sessionId, file, onProgress, projectId, source = 'user') {
   const data = new FormData()
   data.append('file', file)
+  data.append('source', source)
   if (projectId != null) data.append('projectId', String(projectId))
   return request({
     url: '/ai/chat/workspace/' + sessionId + '/upload',

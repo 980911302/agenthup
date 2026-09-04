@@ -18,7 +18,7 @@ import java.io.InputStream;
  * 把图片字节流变成可直接进模型上下文的 {@link Media}。
  *
  * <p>与 {@code ScreenshotToolCallback.shrinkForModel} 同策略,区别是那边从磁盘文件读、
- * 这边从对象存储的流读(渠道工具的截图先落个人文件,服务端再取回)。长边缩到
+ * 这边从通用流读(渠道工具新协议从工作区取回,旧协议从个人文件取回)。长边缩到
  * {@link #MAX_EDGE} 以内并转 JPEG:上游按图块计费,原图尺寸越大块数越多,而截图
  * 缩到这个尺寸对模型识图基本无损。
  *

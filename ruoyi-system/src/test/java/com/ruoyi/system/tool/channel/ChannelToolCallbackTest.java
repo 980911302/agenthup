@@ -1,7 +1,11 @@
 package com.ruoyi.system.tool.channel;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -15,8 +19,15 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import javax.imageio.ImageIO;
+
+import com.ruoyi.system.tool.AiToolProperties;
+
 class ChannelToolCallbackTest
 {
+    @TempDir
+    Path tmp;
+
     @Test
     void definition_fieldsMatch()
     {
@@ -97,5 +108,29 @@ class ChannelToolCallbackTest
         t2.join(3000);
         assertEquals(Boolean.TRUE, a.get());
         assertEquals(Boolean.FALSE, b.get());
+    }
+
+    @Test
+    void workspaceImageBecomesPromptMediaAndAttachment() throws Exception
+    {
+        Path output = tmp.resolve("s/outputs/shot.png");
+        Files.createDirectories(output.getParent());
+        ImageIO.write(new BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), "png", output.toFile());
+        AiToolProperties props = new AiToolProperties();
+        props.setWorkspaceRoot(tmp.toString());
+        props.setWorkspacePerSession(true);
+
+        ChannelToolBroker broker = mock(ChannelToolBroker.class);
+        when(broker.invoke(anyString(), anyString(), anyString(), any(), any(), isNull(), isNull()))
+                .thenReturn(new ChannelToolBroker.ChannelToolResult(
+                        true, "ok", null, null, "outputs/shot.png"));
+        ChannelToolCallback cb = new ChannelToolCallback(
+                new ChannelToolDef("screenshotTab", "d", ChannelToolSchemas.DEFAULT_SCHEMA),
+                broker, "s", "r", json -> {}, null, null, null,
+                "s", props, null);
+
+        assertEquals("ok", cb.call("{}"));
+        assertEquals(1, cb.lastPromptMedia().size());
+        assertEquals("outputs/shot.png", cb.lastAttachments().get(0).path());
     }
 }

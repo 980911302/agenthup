@@ -387,6 +387,13 @@ export function useChatRun(options = {}) {
     turn.lastEventSeq = envelope?.seq || turn.lastEventSeq || 0
     onEvent && onEvent(event, envelope)
 
+    // 渠道工具在浏览器侧执行时也要知道它属于哪个会话。截图上传工作区必须取
+    // 运行事件信封里的 sessionId，不能依赖用户此刻在界面上选中的会话。
+    if (event?.type === EVENT_TYPES.TOOL_CALL_REQUEST && !event.sessionId
+        && envelope?.sessionId) {
+      event = { ...event, sessionId: envelope.sessionId }
+    }
+
     if (event.type === 'run_status') {
       turn.runStatus = event.status
       activeRun.value.status = event.status

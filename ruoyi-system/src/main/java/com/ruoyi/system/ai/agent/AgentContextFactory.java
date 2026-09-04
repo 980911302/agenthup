@@ -103,9 +103,11 @@ public class AgentContextFactory
     @Autowired private AgentToolLoop agentToolLoop;
     @Autowired private com.ruoyi.system.mapper.AiChatRunMapper aiChatRunMapper;
     @Autowired(required = false) private UiArtifactEmitter uiArtifactEmitter;
-    // 渠道工具回传图片时按 fileId 从个人文件取回(见 ChannelToolCallback.loadMedia)
+    // 旧客户端仍可能按 fileId 从个人文件回传图片；新插件使用工作区 workspacePath。
     @Autowired(required = false)
     private com.ruoyi.system.ai.userfile.IAiUserFileService aiUserFileService;
+    @Autowired(required = false)
+    private com.ruoyi.system.tool.RemoteWorkspaceService remoteWorkspaceService;
     @Autowired(required = false) private com.ruoyi.system.tool.channel.ChannelToolBroker channelToolBroker;
     @Autowired(required = false) private com.ruoyi.system.tool.channel.ChannelToolProperties channelToolProperties;
 
@@ -710,7 +712,8 @@ public class AgentContextFactory
             taken.add(def.name());
             ToolCallback cb = new com.ruoyi.system.tool.channel.ChannelToolCallback(
                     def, channelToolBroker, sessionId, runId, eventSink, ownerCode,
-                    operator != null ? operator.userId() : null, aiUserFileService);
+                    operator != null ? operator.userId() : null, aiUserFileService,
+                    resolveWorkspaceKey(sessionId), aiToolProperties, remoteWorkspaceService);
             out.add(wrapRecording(cb, sessionId, agentId, ownerCode, eventSink, operator));
         }
         return out;
@@ -769,7 +772,8 @@ public class AgentContextFactory
         return """
                 ## 环境
                 - 文件与命令使用相对路径，写入当前会话工作区；不要使用 /app 或其它绝对路径
-                - 生图与截图也在会话工作区（路径见工具返回）""";
+                - 用户上传的输入文件位于 uploads/；你新生成并交付给用户的文件统一写入 outputs/
+                - 生图与截图也统一写入 outputs/（路径见工具返回）""";
     }
 
     String buildWorkspaceToolsSection(AiAgent agent)

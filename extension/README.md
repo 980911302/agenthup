@@ -30,7 +30,7 @@ npm run build
 
 会话 `declare` 的 `clientType` 是 `browser_ext`。工具在侧边栏执行,结果经 `chat.tool.result` 回传(或 REST `POST /ai/chat/run/{runId}/tool-result`);服务端断线补发按 `callId` 幂等,执行过的调用原样重发结果、不重跑。共 15 个,以 `src/tools/browserTools.js` 的注册为准:
 
-读取:`getPageContent` / `listTabs` / `readTabs` / `screenshotTab`(截图上传个人文件,只回传 `mediaFileId`)/ `readPage` / `findInPage`
+读取:`getPageContent` / `listTabs` / `readTabs` / `screenshotTab`(截图上传当前会话工作区的 `outputs/`，只回传 `workspacePath`)/ `readPage` / `findInPage`
 
 操作(按确认档位弹确认):`click` / `fillInput` / `navigate` / `openTabs` / `closeTabs` / `batch`(多步合并一次往返,内部逐项过确认,不可嵌套)
 

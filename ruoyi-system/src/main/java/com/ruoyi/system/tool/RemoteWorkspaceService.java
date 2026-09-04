@@ -88,19 +88,29 @@ public class RemoteWorkspaceService
     }
 
     /** POST /ws/upload(multipart)-> {name,path,mime,size} */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> upload(String workspaceKey, String originalName, byte[] bytes)
     {
+        return upload(workspaceKey, originalName, bytes, WorkspaceTreeWalker.SOURCE_USER);
+    }
+
+    /** POST /ws/upload，source=user 进 uploads/，source=ai 进 outputs/。 */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> upload(String workspaceKey, String originalName, byte[] bytes, String source)
+    {
         String boundary = "----" + UUID.randomUUID();
-        String filePart = "--" + boundary + "\r\n"
+        String parts = "--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"source\"\r\n\r\n"
+                + (source == null ? WorkspaceTreeWalker.SOURCE_USER : source) + "\r\n"
+                + "--" + boundary + "\r\n"
                 + "Content-Disposition: form-data; name=\"file\"; filename=\""
                 + WorkspaceTreeWalker.sanitizeFileName(originalName) + "\"\r\n"
                 + "Content-Type: application/octet-stream\r\n\r\n";
+        byte[] head = parts.getBytes(StandardCharsets.UTF_8);
         byte[] tail = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
-        byte[] body = new byte[filePart.length() + bytes.length + tail.length];
-        System.arraycopy(filePart.getBytes(StandardCharsets.UTF_8), 0, body, 0, filePart.length());
-        System.arraycopy(bytes, 0, body, filePart.length(), bytes.length);
-        System.arraycopy(tail, 0, body, filePart.length() + bytes.length, tail.length);
+        byte[] body = new byte[head.length + bytes.length + tail.length];
+        System.arraycopy(head, 0, body, 0, head.length);
+        System.arraycopy(bytes, 0, body, head.length, bytes.length);
+        System.arraycopy(tail, 0, body, head.length + bytes.length, tail.length);
 
         HttpResponse<byte[]> resp = send(build("POST", "/ws/upload", workspaceKey, null,
                 HttpRequest.BodyPublishers.ofByteArray(body))

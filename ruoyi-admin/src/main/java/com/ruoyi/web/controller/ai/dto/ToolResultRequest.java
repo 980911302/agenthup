@@ -11,6 +11,8 @@ public record ToolResultRequest(
         String result,
         String error,
         /** 客户端产出的图片在个人文件里的 id;只传引用,图片本体不过通道。 */
-        Long mediaFileId)
+        Long mediaFileId,
+        /** 客户端产出的图片在当前工作区里的相对路径；新版本优先使用。 */
+        @Size(max = 500) String workspacePath)
 {
 }

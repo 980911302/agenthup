@@ -199,6 +199,17 @@ class McpToolServerIntegrationTest
         assertTrue(get("/ws/tree", "ws-1", null).contains("\"nodes\":[]"));
     }
 
+    @Test
+    void wsAiUploadLandsInOutputsAndTreeExposesDisplayName() throws Exception
+    {
+        String r = multipartPost("/ws/upload", "ws-ai", "shot.png", "image", "ai");
+        assertTrue(r.contains("outputs/shot.png"), r);
+
+        String tree = get("/ws/tree", "ws-ai", null);
+        assertTrue(tree.contains("\"path\":\"outputs\""), tree);
+        assertTrue(tree.contains("\"displayName\":\"AI 生成文件\""), tree);
+    }
+
     private static final HttpClient HTTP_WS = HttpClient.newHttpClient();
 
     private String get(String endpoint, String key, String path) throws Exception
@@ -225,8 +236,17 @@ class McpToolServerIntegrationTest
 
     private String multipartPost(String endpoint, String key, String filename, String content) throws Exception
     {
+        return multipartPost(endpoint, key, filename, content, null);
+    }
+
+    private String multipartPost(String endpoint, String key, String filename, String content,
+                                 String source) throws Exception
+    {
         String boundary = "----mcptest" + System.nanoTime();
-        String head = "--" + boundary + "\r\n"
+        String sourcePart = source == null ? "" : "--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"source\"\r\n\r\n"
+                + source + "\r\n";
+        String head = sourcePart + "--" + boundary + "\r\n"
                 + "Content-Disposition: form-data; name=\"file\"; filename=\"" + filename + "\"\r\n"
                 + "Content-Type: text/plain\r\n\r\n";
         byte[] tail = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);

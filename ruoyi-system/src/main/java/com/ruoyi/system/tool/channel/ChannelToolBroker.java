@@ -224,6 +224,12 @@ public class ChannelToolBroker
      */
     public boolean complete(String callId, boolean ok, String result, String error, Long mediaFileId)
     {
+        return complete(callId, ok, result, error, mediaFileId, null);
+    }
+
+    public boolean complete(String callId, boolean ok, String result, String error,
+                            Long mediaFileId, String workspacePath)
+    {
         if (callId == null || callId.isEmpty())
         {
             return false;
@@ -234,7 +240,8 @@ public class ChannelToolBroker
             return false;
         }
         String text = ok ? (result != null ? result : "") : (error != null ? error : "客户端执行失败");
-        return pending.future.complete(new ChannelToolResult(ok, text, error, ok ? mediaFileId : null));
+        return pending.future.complete(new ChannelToolResult(ok, text, error,
+                ok ? mediaFileId : null, ok ? workspacePath : null));
     }
 
     /** 会话终态：唤醒该会话所有挂起调用。 */
@@ -248,7 +255,7 @@ public class ChannelToolBroker
         {
             if (sessionId.equals(p.sessionId))
             {
-                p.future.complete(new ChannelToolResult(false, "", "本轮已结束", null));
+                p.future.complete(new ChannelToolResult(false, "", "本轮已结束", null, null));
             }
         }
     }
@@ -256,7 +263,7 @@ public class ChannelToolBroker
     /** 失败结果:文本给模型读,ok=false 让 RecordingToolCallback 记成失败。 */
     static ChannelToolResult failure(String name, String reason)
     {
-        return new ChannelToolResult(false, errorText(name, reason), reason, null);
+        return new ChannelToolResult(false, errorText(name, reason), reason, null, null);
     }
 
     static String errorText(String name, String reason)
@@ -265,8 +272,15 @@ public class ChannelToolBroker
         return "[渠道工具] 「" + n + "」失败：" + reason;
     }
 
-    /** mediaFileId:客户端产出的图片在个人文件里的 id,仅传引用,图片本体不过 WebSocket。 */
-    public record ChannelToolResult(boolean ok, String text, String error, Long mediaFileId) { }
+    /** 图片只传个人文件 id(旧协议)或工作区相对路径(新协议)，本体不过 WebSocket。 */
+    public record ChannelToolResult(boolean ok, String text, String error,
+                                    Long mediaFileId, String workspacePath)
+    {
+        public ChannelToolResult(boolean ok, String text, String error, Long mediaFileId)
+        {
+            this(ok, text, error, mediaFileId, null);
+        }
+    }
 
     /** 客户端已离线且宽限期内没回来。与超时区分开，好让模型知道该提示用户开侧边栏。 */
     private static final class ClientGoneException extends RuntimeException

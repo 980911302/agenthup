@@ -144,7 +144,7 @@
                 </span>
 
                 <!-- 文件名 -->
-                <span class="ws-tree-node__label">{{ node.name }}</span>
+                <span class="ws-tree-node__label">{{ nodeLabel(node) }}</span>
 
                 <!-- 文件体积 -->
                 <span v-if="!node.isDir && node.size" class="ws-tree-node__size">{{ fmtSize(node.size) }}</span>
@@ -368,11 +368,13 @@ const flattenedTree = computed(() => {
   function traverse(nodes, depth = 0) {
     for (const node of nodes || []) {
       const isDir = node.type === 'dir'
-      const match = !kw || (node.name || '').toLowerCase().includes(kw)
+      const searchable = `${node.name || ''} ${node.displayName || ''}`.toLowerCase()
+      const match = !kw || searchable.includes(kw)
 
       if (isDir) {
         const children = node.children || []
-        const hasMatchingChild = kw && children.some(c => (c.name || '').toLowerCase().includes(kw))
+        const hasMatchingChild = kw && children.some(c =>
+          `${c.name || ''} ${c.displayName || ''}`.toLowerCase().includes(kw))
         if (!kw || match || hasMatchingChild) {
           list.push({ ...node, depth, isDir: true })
           if (!kw && !expandedPaths.has(node.path)) {
@@ -406,6 +408,10 @@ function fileKind(data) {
   return 'file'
 }
 
+function nodeLabel(data) {
+  return data?.displayName || data?.name || ''
+}
+
 function fmtSize(b) {
   const v = Number(b) || 0
   if (v < 1024) return v + ' B'
@@ -415,7 +421,7 @@ function fmtSize(b) {
 
 function nodeTip(data) {
   if (!data) return ''
-  const bits = [data.name]
+  const bits = [nodeLabel(data)]
   if (!data.isDir && data.size != null) bits.push(fmtSize(data.size))
   if (data.mtime) {
     const d = new Date(data.mtime)

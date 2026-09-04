@@ -258,7 +258,7 @@ public class ChatJsonRpcWebSocketHandler extends TextWebSocketHandler
         boolean ok = Boolean.TRUE.equals(params.getBoolean("ok"));
         boolean matched = runService.completeChannelTool(
                 runId, callId, ok, params.getString("result"), params.getString("error"),
-                params.getLong("mediaFileId"), userId, admin);
+                params.getLong("mediaFileId"), params.getString("workspacePath"), userId, admin);
         return java.util.Map.of("ok", true, "matched", matched);
     }
 

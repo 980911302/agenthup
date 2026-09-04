@@ -177,7 +177,8 @@ public class AiChatWorkspaceController extends BaseController
     }
 
     /**
-     * 上传文件到会话工作区的 {@code uploads/} 目录。
+     * 上传文件到会话工作区。用户上传默认进 {@code uploads/}；AI/渠道工具产物进
+     * {@code outputs/}。两者使用同一接口，保证 local 与 MCP 远端模式行为一致。
      *
      * <p>只新增、不覆盖:同名文件自动加序号(report.csv -> report(1).csv),
      * 避免用户二次上传把模型已经读过的文件悄悄换掉 —— 那会让上下文与磁盘不一致。
@@ -189,6 +190,7 @@ public class AiChatWorkspaceController extends BaseController
     @PostMapping("/{sessionId}/upload")
     public AjaxResult upload(@PathVariable String sessionId,
                              @RequestParam(value = "projectId", required = false) Long projectId,
+                             @RequestParam(value = "source", required = false, defaultValue = "user") String source,
                              @RequestParam("file") MultipartFile file) throws IOException
     {
         // 与只读接口不同,这里用 requireOrCreateSession:
@@ -206,24 +208,25 @@ public class AiChatWorkspaceController extends BaseController
         if (remoteWorkspaceService.enabled())
         {
             Map<String, Object> data = remoteWorkspaceService.upload(resolveRemoteWorkspaceKey(sessionId, projectId),
-                    file.getOriginalFilename(), file.getBytes());
+                    file.getOriginalFilename(), file.getBytes(), source);
             return AjaxResult.success(data);
         }
 
         Path root = workspaceScopeService.resolveRoot(aiToolProperties, sessionId, true);
-        Path uploadDir = root.resolve(WorkspaceTreeWalker.UPLOAD_DIR);
+        String directory = WorkspaceTreeWalker.uploadDirectory(source);
+        Path uploadDir = root.resolve(directory);
         Files.createDirectories(uploadDir);
 
         String safeName = WorkspaceTreeWalker.sanitizeFileName(file.getOriginalFilename());
         Path target = WorkspaceTreeWalker.uniqueTarget(uploadDir, safeName);
-        // 二次校验:sanitize 后仍必须落在 uploads/ 内,防御任何遗漏的穿越形态
+        // 二次校验:sanitize 后仍必须落在目标分区内,防御任何遗漏的穿越形态
         if (!target.normalize().startsWith(uploadDir.normalize()))
         {
             throw new ServiceException("非法的文件名");
         }
         file.transferTo(target);
 
-        String relPath = WorkspaceTreeWalker.UPLOAD_DIR + "/" + target.getFileName();
+        String relPath = directory + "/" + target.getFileName();
         Map<String, Object> data = new HashMap<>();
         data.put("name", target.getFileName().toString());
         data.put("path", relPath);

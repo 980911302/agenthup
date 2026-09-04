@@ -1,5 +1,5 @@
 import { defineClientTool } from '../chat/clientTools'
-import { uploadUserFile } from '../api/userFile'
+import { uploadWorkspaceFile } from '../api/workspace'
 import { confirmDanger } from '../utils/confirm'
 import { shouldConfirm } from '../utils/confirmPolicy'
 
@@ -259,7 +259,7 @@ export function registerBrowserTools() {
         offset: { type: 'integer', description: '从第几个字符开始，用于续读' }
       }
     }
-  }, async (args) => {
+  }, async (args, context) => {
     const tab = await tabById(args?.tabId)
     return unwrap(await sendToTab(tab.id, {
       type: 'getPageContent', maxChars: args?.maxChars, offset: args?.offset
@@ -342,14 +342,16 @@ export function registerBrowserTools() {
     const scale = args?.scale == null ? 0.5 : Number(args.scale)
     const shot = await scaleBlob(dataUrl, scale)
     const file = new File([shot.blob], shot.name, { type: shot.type })
-    const uploaded = await uploadUserFile(file)
-    const name = uploaded?.data?.fileName || uploaded?.fileName || file.name
-    const fileId = uploaded?.data?.fileId ?? uploaded?.fileId ?? null
-    // 只回 fileId,图片本体不过 WebSocket:base64 会撑爆审计流与工具字符预算。
-    // 服务端按 id 从个人文件取回、缩到模型尺寸后作为 Media 进下一轮上下文。
+    const sessionId = context?.sessionId
+    if (!sessionId) throw new Error('截图无法保存到工作区：当前运行未携带会话 ID，请刷新插件后重试')
+    // 这是 AI 发起的渠道工具产物，必须进入 outputs/。主应用在 MCP 模式下会把
+    // 这次上传继续代理到 tool-mcp-server，和 bash/read/write 使用同一个工作区键。
+    const uploaded = await uploadWorkspaceFile(sessionId, file, null, null, 'ai')
+    const saved = uploaded?.data || uploaded || {}
+    if (!saved.path) throw new Error('截图已生成，但工作区没有返回文件路径')
     return {
-      text: `已截取当前可见画面（scale=${scale}），已保存到个人文件：${name}。画面已随本次结果提供。`,
-      mediaFileId: fileId
+      text: `已截取当前可见画面（scale=${scale}），已保存到 AI 生成文件：${saved.path}。画面已随本次结果提供。`,
+      workspacePath: saved.path
     }
   })
 

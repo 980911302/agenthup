@@ -330,6 +330,14 @@ public class ChatRunService
                                        String result, String error, Long mediaFileId,
                                        Long userId, boolean admin)
     {
+        return completeChannelTool(runId, callId, ok, result, error, mediaFileId, null,
+                userId, admin);
+    }
+
+    public boolean completeChannelTool(String runId, String callId, boolean ok,
+                                       String result, String error, Long mediaFileId,
+                                       String workspacePath, Long userId, boolean admin)
+    {
         AiChatRun run = get(runId, userId, admin);
         if (ChatRunStatus.isTerminal(run.getStatus()))
         {
@@ -340,7 +348,7 @@ public class ChatRunService
             throw new ServiceException("callId 不能为空");
         }
         return channelToolBroker != null
-                && channelToolBroker.complete(callId, ok, result, error, mediaFileId);
+                && channelToolBroker.complete(callId, ok, result, error, mediaFileId, workspacePath);
     }
 
     /**

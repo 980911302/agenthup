@@ -67,7 +67,7 @@
                   <svg v-else width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M9 1.6H4.4a1 1 0 0 0-1 1v10.8a1 1 0 0 0 1 1h7.2a1 1 0 0 0 1-1V5.4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 1.6V5.4h3.6" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
                   <i v-if="data.type === 'file'" class="ws-tree-node__dot"></i>
                 </span>
-                <span class="ws-tree-node__label">{{ data.name }}</span>
+                <span class="ws-tree-node__label">{{ nodeLabel(data) }}</span>
                 <span v-if="data.type === 'file' && data.size" class="ws-tree-node__size">{{ fmtSize(data.size) }}</span>
                 <div class="ws-tree-node__actions">
                   <button
@@ -146,7 +146,7 @@ const filteredTree = computed(() => {
   const walk = (nodes) => {
     const out = []
     for (const n of nodes) {
-      if ((n.name || '').toLowerCase().includes(kw)) out.push(n)
+      if (`${n.name || ''} ${n.displayName || ''}`.toLowerCase().includes(kw)) out.push(n)
       else if (n.children && n.children.length) {
         const ch = walk(n.children)
         if (ch.length) out.push({ ...n, children: ch })
@@ -172,6 +172,10 @@ function fileKind(data) {
   return 'file'
 }
 
+function nodeLabel(data) {
+  return data?.displayName || data?.name || ''
+}
+
 /** 文件大小: B / KB / MB */
 function fmtSize(b) {
   const v = Number(b) || 0
@@ -183,7 +187,7 @@ function fmtSize(b) {
 /** 树节点 tooltip:文件附大小/修改时间 */
 function nodeTip(data) {
   if (!data) return ''
-  const bits = [data.name]
+  const bits = [nodeLabel(data)]
   if (data.type === 'file' && data.size != null) bits.push(fmtSize(data.size))
   if (data.mtime) {
     const d = new Date(data.mtime)

@@ -104,7 +104,8 @@ public class AiChatRunController extends BaseController
     {
         boolean matched = runService.completeChannelTool(
                 runId, request.callId(), Boolean.TRUE.equals(request.ok()),
-                request.result(), request.error(), request.mediaFileId(), getUserId(), isAdmin());
+                request.result(), request.error(), request.mediaFileId(), request.workspacePath(),
+                getUserId(), isAdmin());
         return AjaxResult.success(java.util.Map.of("ok", true, "matched", matched));
     }
 

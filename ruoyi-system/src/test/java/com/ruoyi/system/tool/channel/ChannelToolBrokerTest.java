@@ -98,7 +98,7 @@ class ChannelToolBrokerTest
     }
 
     @Test
-    void mediaFileId_carriedOnSuccessOnly() throws Exception
+    void mediaReferences_carriedOnSuccessOnly() throws Exception
     {
         for (boolean ok : new boolean[] { true, false })
         {
@@ -114,10 +114,12 @@ class ChannelToolBrokerTest
             Thread.sleep(50);
             Matcher m = Pattern.compile("\"callId\":\"([^\"]+)\"").matcher(events.get(0));
             assertTrue(m.find());
-            assertTrue(broker.complete(m.group(1), ok, "done", ok ? null : "boom", 42L));
+            assertTrue(broker.complete(m.group(1), ok, "done", ok ? null : "boom",
+                    42L, "outputs/shot.png"));
             t.join(2000);
             // 失败结果不能带图：那张图对应的调用没成功，喂给模型只会误导
             assertEquals(ok ? Long.valueOf(42L) : null, out.get().mediaFileId());
+            assertEquals(ok ? "outputs/shot.png" : null, out.get().workspacePath());
         }
     }
 

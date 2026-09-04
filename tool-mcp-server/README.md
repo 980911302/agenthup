@@ -77,7 +77,7 @@ bind,读写落到 `{workspace-root}/{workspaceKey}` —— 与主应用工作区
 | `GET /ws/download?workspaceKey=…&path=…` | 原样下载 |
 | `GET /ws/download-zip?workspaceKey=…&path=…` | 目录打包(条数/字节上限,软链接跳过) |
 | `DELETE /ws/file` / `DELETE /ws/clear` | 删除单文件 / 清空工作区 |
-| `POST /ws/upload` | 上传到 uploads/ |
+| `POST /ws/upload` | `source=user` 上传到 uploads/；`source=ai` 上传到 outputs/ |
 
 护栏与主应用同源:`WorkspaceSandbox` 校验 key 格式(SessionIds 正则)与路径穿越/符号链接,
 `WorkspaceTreeWalker` 出同一形状。主应用 `AiChatWorkspaceController` 在 mode=mcp 且配了

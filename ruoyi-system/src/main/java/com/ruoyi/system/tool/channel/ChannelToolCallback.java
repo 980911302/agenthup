@@ -3,14 +3,24 @@ package com.ruoyi.system.tool.channel;
 import com.ruoyi.ai.contract.storage.ObjectReadHandle;
 import com.ruoyi.system.ai.event.ChatEventSink;
 import com.ruoyi.system.ai.userfile.IAiUserFileService;
+import com.ruoyi.system.tool.AiToolProperties;
+import com.ruoyi.system.tool.AttachmentAware;
 import com.ruoyi.system.tool.PromptImages;
 import com.ruoyi.system.tool.PromptMediaAware;
+import com.ruoyi.system.tool.RemoteWorkspaceService;
+import com.ruoyi.system.tool.ToolAttachment;
 import com.ruoyi.system.tool.ToolOutcomeAware;
+import com.ruoyi.system.tool.WorkspaceSandbox;
+import com.ruoyi.system.tool.WorkspaceTreeWalker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.content.Media;
 
+import java.io.ByteArrayInputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.net.URLConnection;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.DefaultToolDefinition;
@@ -21,7 +31,7 @@ import org.springframework.ai.tool.definition.ToolDefinition;
  *
  * <p>{@code lastCallOk} 必须 ThreadLocal：callback 实例在并行调用间共享。
  */
-public class ChannelToolCallback implements ToolCallback, ToolOutcomeAware, PromptMediaAware
+public class ChannelToolCallback implements ToolCallback, ToolOutcomeAware, PromptMediaAware, AttachmentAware
 {
     private static final Logger log = LoggerFactory.getLogger(ChannelToolCallback.class);
 
@@ -35,13 +45,27 @@ public class ChannelToolCallback implements ToolCallback, ToolOutcomeAware, Prom
     private final String owner;
     private final Long userId;
     private final IAiUserFileService userFileService;
+    private final String workspaceKey;
+    private final AiToolProperties toolProperties;
+    private final RemoteWorkspaceService remoteWorkspaceService;
     private final ThreadLocal<Boolean> lastCallOk = new ThreadLocal<>();
     // 与 lastCallOk 同理:实例在并行调用间共享,必须 ThreadLocal
     private final ThreadLocal<List<Media>> lastMedia = new ThreadLocal<>();
+    private final ThreadLocal<List<ToolAttachment>> lastAttachments = new ThreadLocal<>();
 
     public ChannelToolCallback(ChannelToolDef def, ChannelToolBroker broker,
                                String sessionId, String runId, ChatEventSink eventSink, String owner,
                                Long userId, IAiUserFileService userFileService)
+    {
+        this(def, broker, sessionId, runId, eventSink, owner, userId, userFileService,
+                sessionId, null, null);
+    }
+
+    public ChannelToolCallback(ChannelToolDef def, ChannelToolBroker broker,
+                               String sessionId, String runId, ChatEventSink eventSink, String owner,
+                               Long userId, IAiUserFileService userFileService,
+                               String workspaceKey, AiToolProperties toolProperties,
+                               RemoteWorkspaceService remoteWorkspaceService)
     {
         this.def = def;
         this.broker = broker;
@@ -51,6 +75,9 @@ public class ChannelToolCallback implements ToolCallback, ToolOutcomeAware, Prom
         this.owner = owner;
         this.userId = userId;
         this.userFileService = userFileService;
+        this.workspaceKey = workspaceKey;
+        this.toolProperties = toolProperties;
+        this.remoteWorkspaceService = remoteWorkspaceService;
     }
 
     @Override
@@ -68,10 +95,19 @@ public class ChannelToolCallback implements ToolCallback, ToolOutcomeAware, Prom
     {
         lastCallOk.remove();
         lastMedia.remove();
+        lastAttachments.remove();
         ChannelToolBroker.ChannelToolResult result =
                 broker.invoke(sessionId, runId, def.name(), toolInput, eventSink, owner, null);
         lastCallOk.set(result.ok());
-        if (result.ok() && result.mediaFileId() != null)
+        if (result.ok() && result.workspacePath() != null && !result.workspacePath().isBlank())
+        {
+            List<Media> media = loadWorkspaceMedia(result.workspacePath());
+            if (media != null)
+            {
+                lastMedia.set(media);
+            }
+        }
+        else if (result.ok() && result.mediaFileId() != null)
         {
             List<Media> media = loadMedia(result.mediaFileId());
             if (media != null)
@@ -102,6 +138,84 @@ public class ChannelToolCallback implements ToolCallback, ToolOutcomeAware, Prom
         List<Media> media = lastMedia.get();
         lastMedia.remove();
         return media;
+    }
+
+    @Override
+    public List<ToolAttachment> lastAttachments()
+    {
+        List<ToolAttachment> attachments = lastAttachments.get();
+        lastAttachments.remove();
+        return attachments;
+    }
+
+    /**
+     * 新协议从当前工作区读取截图。MCP 模式经 RemoteWorkspaceService 访问 OPI；local
+     * 模式直接读会话沙箱。读取成功后，同一路径既进入模型视觉上下文，也作为前端附件。
+     */
+    private List<Media> loadWorkspaceMedia(String relativePath)
+    {
+        if (toolProperties == null || workspaceKey == null || workspaceKey.isBlank())
+        {
+            return null;
+        }
+        if (relativePath.length() > 500)
+        {
+            log.warn("渠道工具工作区图片路径过长，已拒绝: tool={}", def.name());
+            return null;
+        }
+        try
+        {
+            byte[] bytes;
+            if (remoteWorkspaceService != null && remoteWorkspaceService.enabled())
+            {
+                Object remoteSize = remoteWorkspaceService.file(workspaceKey, relativePath).get("size");
+                if (remoteSize instanceof Number size
+                        && size.longValue() > WorkspaceTreeWalker.MAX_UPLOAD_BYTES)
+                {
+                    throw new IllegalStateException("图片超过工作区媒体读取上限");
+                }
+                bytes = remoteWorkspaceService.download(workspaceKey, relativePath);
+            }
+            else
+            {
+                Path root = WorkspaceSandbox.resolveRoot(toolProperties, workspaceKey, false);
+                Path target = WorkspaceSandbox.resolveSafe(root, relativePath);
+                if (!Files.isRegularFile(target))
+                {
+                    throw new IllegalStateException("文件不存在");
+                }
+                if (Files.size(target) > WorkspaceTreeWalker.MAX_UPLOAD_BYTES)
+                {
+                    throw new IllegalStateException("图片超过工作区媒体读取上限");
+                }
+                bytes = Files.readAllBytes(target);
+            }
+            Media media = PromptImages.fromStream(new ByteArrayInputStream(bytes));
+            if (media == null)
+            {
+                return null;
+            }
+            String name = fileName(relativePath);
+            String mime = URLConnection.guessContentTypeFromName(name);
+            lastAttachments.set(List.of(new ToolAttachment(
+                    "image", relativePath, name, (long) bytes.length,
+                    mime != null ? mime : "image/png")));
+            return List.of(media);
+        }
+        catch (Exception e)
+        {
+            // 文本结果与工作区文件已经成功，视觉加载失败不应把整次工具调用改判失败。
+            log.warn("渠道工具工作区图片取回失败: tool={} path={}: {}",
+                    def.name(), relativePath, e.getMessage());
+            return null;
+        }
+    }
+
+    private static String fileName(String path)
+    {
+        String normalized = path == null ? "screenshot.png" : path.replace('\\', '/');
+        int slash = normalized.lastIndexOf('/');
+        return slash >= 0 ? normalized.substring(slash + 1) : normalized;
     }
 
     /**

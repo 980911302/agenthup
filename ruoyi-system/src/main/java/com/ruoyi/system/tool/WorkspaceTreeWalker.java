@@ -30,6 +30,12 @@ public final class WorkspaceTreeWalker
     public static final long MAX_FILE_BYTES = 200 * 1024L;
     /** 用户上传目录(相对会话沙箱根),与 AI 自己产出的文件分开放 */
     public static final String UPLOAD_DIR = "uploads";
+    /** AI 生成文件目录(相对会话沙箱根) */
+    public static final String OUTPUT_DIR = "outputs";
+    /** 工作区上传来源:用户主动上传 */
+    public static final String SOURCE_USER = "user";
+    /** 工作区上传来源:AI/渠道工具生成 */
+    public static final String SOURCE_AI = "ai";
     /** 单个上传文件大小上限(与 ai/chat/workspace 上传、Spring multipart 上限对齐) */
     public static final long MAX_UPLOAD_BYTES = 10 * 1024 * 1024L;
     /** 文件名最大长度(不含去重后缀) */
@@ -65,6 +71,8 @@ public final class WorkspaceTreeWalker
     public static class Node
     {
         public String name;
+        /** 面向用户的名称；路径与真实文件名仍使用 name/path，避免中文展示名破坏文件操作 */
+        public String displayName;
         /** 相对沙箱根的路径 */
         public String path;
         /** dir / file */
@@ -125,6 +133,7 @@ public final class WorkspaceTreeWalker
             boolean isDir = Files.isDirectory(p, LinkOption.NOFOLLOW_LINKS);
             Node n = new Node();
             n.name = p.getFileName().toString();
+            n.displayName = displayName(n.name, isDir, depth);
             n.path = root.relativize(p).toString().replace('\\', '/');
             n.type = isDir ? "dir" : "file";
             n.size = isDir ? 0L : Files.size(p);
@@ -136,6 +145,40 @@ public final class WorkspaceTreeWalker
             list.add(n);
         }
         return list;
+    }
+
+    /**
+     * 上传来源对应的固定分区。缺省保持用户上传语义；未知值拒绝，避免调用方拼错后
+     * 把 AI 产物静默放进个人上传区。
+     */
+    public static String uploadDirectory(String source)
+    {
+        if (StringUtils.isEmpty(source) || SOURCE_USER.equalsIgnoreCase(source))
+        {
+            return UPLOAD_DIR;
+        }
+        if (SOURCE_AI.equalsIgnoreCase(source))
+        {
+            return OUTPUT_DIR;
+        }
+        throw new ServiceException("未知的工作区文件来源: " + source);
+    }
+
+    private static String displayName(String name, boolean directory, int depth)
+    {
+        if (!directory || depth != 1)
+        {
+            return null;
+        }
+        if (UPLOAD_DIR.equals(name))
+        {
+            return "个人文件上传";
+        }
+        if (OUTPUT_DIR.equals(name))
+        {
+            return "AI 生成文件";
+        }
+        return null;
     }
 
     /**

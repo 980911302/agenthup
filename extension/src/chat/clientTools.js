@@ -150,14 +150,20 @@ async function runHandler(name, event) {
     args = {}
   }
   try {
-    const raw = await withWatchdog(name, entry.handler(args))
-    // 工具可以回 { text, mediaFileId } 附带一张已上传到个人文件的图片(如 screenshotTab)。
-    // 只传 id：图片本体走这条通道会撑爆审计流与工具字符预算，服务端凭 id 自己取回。
-    const hasMedia = raw && typeof raw === 'object' && !Array.isArray(raw) && 'mediaFileId' in raw
+    // 第二个参数只供客户端 handler 使用，不会混进模型生成的工具入参。
+    const raw = await withWatchdog(name, entry.handler(args, {
+      sessionId: event.sessionId || null
+    }))
+    // 截图等工具回工作区路径引用；图片本体不走 WebSocket，服务端按当前工作区读取。
+    // mediaFileId 继续兼容旧版本插件。
+    const hasMedia = raw && typeof raw === 'object' && !Array.isArray(raw)
+      && ('workspacePath' in raw || 'mediaFileId' in raw)
     const payload = hasMedia ? raw.text : raw
     const mediaFileId = hasMedia && raw.mediaFileId != null ? Number(raw.mediaFileId) : null
+    const workspacePath = hasMedia && typeof raw.workspacePath === 'string'
+      ? raw.workspacePath : null
     const result = payload == null ? '' : (typeof payload === 'string' ? payload : JSON.stringify(payload))
-    return { ok: true, result, mediaFileId }
+    return { ok: true, result, mediaFileId, workspacePath }
   } catch (e) {
     return { ok: false, error: e?.message || String(e) }
   }
@@ -195,6 +201,7 @@ function withWatchdog(name, promise) {
  */
 async function sendResult(runId, callId, outcome) {
   const mediaFileId = outcome?.mediaFileId
+  const workspacePath = outcome?.workspacePath
   try {
     await chatRpc.request('chat.tool.result', {
       runId,
@@ -202,7 +209,8 @@ async function sendResult(runId, callId, outcome) {
       ok: !!outcome?.ok,
       result: outcome?.result ?? null,
       error: outcome?.error ?? null,
-      ...(Number.isFinite(mediaFileId) ? { mediaFileId } : {})
+      ...(Number.isFinite(mediaFileId) ? { mediaFileId } : {}),
+      ...(workspacePath ? { workspacePath } : {})
     })
   } catch (e) {
     console.warn('回传客户端工具结果失败', e)
