@@ -433,7 +433,7 @@ erDiagram
 
 ### 6.9 长期记忆域
 
-跨会话长期记忆(系统侧全自动,agent 无任何记忆工具)。台账在 MySQL 主库,向量在 PostgreSQL。设计原稿 `docs/superpowers/specs/2026-08-29-ai-memory-design.md`,读侧注入/写侧提炼细节见 `上下文与记忆模块.md §7`。
+跨会话长期记忆(系统侧全自动,agent 无任何记忆工具)。台账在 MySQL 主库,向量在 PostgreSQL。读侧注入/写侧提炼细节见 `上下文与记忆模块.md §7`。
 
 #### `ai_memory` — 记忆台账(MySQL 主库)
 

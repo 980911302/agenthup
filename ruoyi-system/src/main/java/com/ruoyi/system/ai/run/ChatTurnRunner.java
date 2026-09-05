@@ -115,7 +115,7 @@ public class ChatTurnRunner
     private ContextCompactor contextCompactor;
     @Autowired
     private com.ruoyi.system.mapper.AiChatSessionMapper sessionMapper;
-    /** 跨会话长期记忆读侧:每轮自动检索注入本轮 user 前(见 docs/superpowers/specs/2026-08-29-ai-memory-design.md §7)。 */
+    /** 跨会话长期记忆读侧:每轮自动检索注入本轮 user 前(见 docs/上下文与记忆模块.md §7)。 */
     @Autowired(required = false)
     private com.ruoyi.system.ai.memory.longterm.MemoryRetriever memoryRetriever;
 
